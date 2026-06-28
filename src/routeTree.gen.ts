@@ -16,7 +16,10 @@ import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardTestsRouteImport } from './routes/dashboard.tests'
 import { Route as DashboardProfileRouteImport } from './routes/dashboard.profile'
 import { Route as DashboardPracticeRouteImport } from './routes/dashboard.practice'
+import { Route as DashboardMaterialRouteImport } from './routes/dashboard.material'
+import { Route as DashboardLiveRouteImport } from './routes/dashboard.live'
 import { Route as DashboardLeaderboardRouteImport } from './routes/dashboard.leaderboard'
+import { Route as DashboardAiRouteImport } from './routes/dashboard.ai'
 import { Route as DashboardTestsTestIdRouteImport } from './routes/dashboard.tests.$testId'
 import { Route as DashboardPracticeSubjectRouteImport } from './routes/dashboard.practice.$subject'
 
@@ -55,9 +58,24 @@ const DashboardPracticeRoute = DashboardPracticeRouteImport.update({
   path: '/practice',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardMaterialRoute = DashboardMaterialRouteImport.update({
+  id: '/material',
+  path: '/material',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardLiveRoute = DashboardLiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardLeaderboardRoute = DashboardLeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAiRoute = DashboardAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardTestsTestIdRoute = DashboardTestsTestIdRouteImport.update({
@@ -76,7 +94,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/dashboard/ai': typeof DashboardAiRoute
   '/dashboard/leaderboard': typeof DashboardLeaderboardRoute
+  '/dashboard/live': typeof DashboardLiveRoute
+  '/dashboard/material': typeof DashboardMaterialRoute
   '/dashboard/practice': typeof DashboardPracticeRouteWithChildren
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/tests': typeof DashboardTestsRouteWithChildren
@@ -87,7 +108,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/dashboard/ai': typeof DashboardAiRoute
   '/dashboard/leaderboard': typeof DashboardLeaderboardRoute
+  '/dashboard/live': typeof DashboardLiveRoute
+  '/dashboard/material': typeof DashboardMaterialRoute
   '/dashboard/practice': typeof DashboardPracticeRouteWithChildren
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/tests': typeof DashboardTestsRouteWithChildren
@@ -100,7 +124,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/dashboard/ai': typeof DashboardAiRoute
   '/dashboard/leaderboard': typeof DashboardLeaderboardRoute
+  '/dashboard/live': typeof DashboardLiveRoute
+  '/dashboard/material': typeof DashboardMaterialRoute
   '/dashboard/practice': typeof DashboardPracticeRouteWithChildren
   '/dashboard/profile': typeof DashboardProfileRoute
   '/dashboard/tests': typeof DashboardTestsRouteWithChildren
@@ -114,7 +141,10 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/dashboard/ai'
     | '/dashboard/leaderboard'
+    | '/dashboard/live'
+    | '/dashboard/material'
     | '/dashboard/practice'
     | '/dashboard/profile'
     | '/dashboard/tests'
@@ -125,7 +155,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/dashboard/ai'
     | '/dashboard/leaderboard'
+    | '/dashboard/live'
+    | '/dashboard/material'
     | '/dashboard/practice'
     | '/dashboard/profile'
     | '/dashboard/tests'
@@ -137,7 +170,10 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/dashboard/ai'
     | '/dashboard/leaderboard'
+    | '/dashboard/live'
+    | '/dashboard/material'
     | '/dashboard/practice'
     | '/dashboard/profile'
     | '/dashboard/tests'
@@ -203,11 +239,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardPracticeRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/material': {
+      id: '/dashboard/material'
+      path: '/material'
+      fullPath: '/dashboard/material'
+      preLoaderRoute: typeof DashboardMaterialRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/live': {
+      id: '/dashboard/live'
+      path: '/live'
+      fullPath: '/dashboard/live'
+      preLoaderRoute: typeof DashboardLiveRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/leaderboard': {
       id: '/dashboard/leaderboard'
       path: '/leaderboard'
       fullPath: '/dashboard/leaderboard'
       preLoaderRoute: typeof DashboardLeaderboardRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/ai': {
+      id: '/dashboard/ai'
+      path: '/ai'
+      fullPath: '/dashboard/ai'
+      preLoaderRoute: typeof DashboardAiRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/tests/$testId': {
@@ -251,7 +308,10 @@ const DashboardTestsRouteWithChildren = DashboardTestsRoute._addFileChildren(
 )
 
 interface DashboardRouteChildren {
+  DashboardAiRoute: typeof DashboardAiRoute
   DashboardLeaderboardRoute: typeof DashboardLeaderboardRoute
+  DashboardLiveRoute: typeof DashboardLiveRoute
+  DashboardMaterialRoute: typeof DashboardMaterialRoute
   DashboardPracticeRoute: typeof DashboardPracticeRouteWithChildren
   DashboardProfileRoute: typeof DashboardProfileRoute
   DashboardTestsRoute: typeof DashboardTestsRouteWithChildren
@@ -259,7 +319,10 @@ interface DashboardRouteChildren {
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAiRoute: DashboardAiRoute,
   DashboardLeaderboardRoute: DashboardLeaderboardRoute,
+  DashboardLiveRoute: DashboardLiveRoute,
+  DashboardMaterialRoute: DashboardMaterialRoute,
   DashboardPracticeRoute: DashboardPracticeRouteWithChildren,
   DashboardProfileRoute: DashboardProfileRoute,
   DashboardTestsRoute: DashboardTestsRouteWithChildren,
