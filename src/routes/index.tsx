@@ -350,35 +350,6 @@ function PaperProof() {
   );
 }
 
-function Testimonials() {
-  return (
-    <section id="testimonials" className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
-      <div className="mx-auto max-w-2xl text-center">
-        <Badge variant="secondary" className="mb-3">Loved by toppers</Badge>
-        <h2 className="font-display text-3xl font-bold sm:text-4xl">Real students, real ranks</h2>
-      </div>
-      <div className="mt-12 grid gap-6 md:grid-cols-3">
-        {testimonials.map((t) => (
-          <Card key={t.name} className="border-border/60 p-6">
-            <div className="flex items-center gap-0.5 text-warning">
-              {Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-current" />)}
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-foreground/90">"{t.text}"</p>
-            <div className="mt-5 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-brand-gradient font-semibold text-primary-foreground">
-                {t.name[0]}
-              </div>
-              <div>
-                <div className="text-sm font-semibold">{t.name}</div>
-                <div className="text-xs text-muted-foreground">NEET {t.score}</div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 function CTA() {
   return (
