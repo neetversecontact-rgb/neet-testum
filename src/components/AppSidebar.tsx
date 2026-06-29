@@ -76,7 +76,7 @@ export function AppSidebar() {
             <Atom className="h-5 w-5 text-primary-foreground" />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="font-display text-base font-bold leading-tight">NEETx</span>
+            <span className="font-display text-base font-bold leading-tight">Testum</span>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Student</span>
           </div>
         </Link>

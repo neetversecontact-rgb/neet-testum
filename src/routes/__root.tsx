@@ -76,14 +76,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "NEETx — India's #1 NEET MCQ Practice & Test Platform" },
+      { title: "Testum — India's #1 NEET MCQ Practice & Test Platform" },
       {
         name: "description",
         content:
           "Practice 4.5L+ NEET MCQs, take mock tests, track your rank and ace NEET with chapter-wise tests, AI tools, and live poll classes.",
       },
-      { name: "author", content: "NEETx" },
-      { property: "og:title", content: "NEETx — NEET MCQ Practice & Test Platform" },
+      { name: "author", content: "Testum" },
+      { property: "og:title", content: "Testum — NEET MCQ Practice & Test Platform" },
       {
         property: "og:description",
         content: "4.5L+ questions, mock tests, AI rank predictor, and chapter-wise practice for NEET aspirants.",
