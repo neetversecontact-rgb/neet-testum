@@ -92,7 +92,7 @@ function Header() {
           <a href="#subjects" className="text-sm text-muted-foreground hover:text-foreground">Subjects</a>
           <a href="#how" className="text-sm text-muted-foreground hover:text-foreground">How it works</a>
           <a href="#features" className="text-sm text-muted-foreground hover:text-foreground">Features</a>
-          <a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground">Reviews</a>
+          
         </nav>
         <div className="flex items-center gap-2">
           <Button variant="ghost" asChild>
