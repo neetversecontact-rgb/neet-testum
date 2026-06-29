@@ -87,7 +87,7 @@ function AuthPage() {
         <Card className="w-full max-w-md border-border/60 p-8 shadow-elegant">
           <Link to="/" className="mb-6 inline-flex items-center gap-2 lg:hidden">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-brand-gradient">
-              <span className="font-display text-sm font-bold text-primary-foreground">N</span>
+              <span className="font-display text-sm font-bold text-primary-foreground">T</span>
             </div>
             <span className="font-display text-lg font-bold">Testum</span>
           </Link>

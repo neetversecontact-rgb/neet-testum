@@ -374,7 +374,7 @@ function Footer() {
         <div>
           <div className="flex items-center gap-2">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-brand-gradient">
-              <span className="font-display text-sm font-bold text-primary-foreground">N</span>
+              <span className="font-display text-sm font-bold text-primary-foreground">T</span>
             </div>
             <span className="font-display text-lg font-bold">Testum</span>
           </div>
