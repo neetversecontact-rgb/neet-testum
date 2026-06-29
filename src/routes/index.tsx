@@ -69,7 +69,7 @@ function Landing() {
       <HowItWorks />
       <Features />
       <PaperProof />
-      <Testimonials />
+      
       <CTA />
       <Footer />
     </div>
