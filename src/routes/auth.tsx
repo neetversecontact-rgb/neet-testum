@@ -12,8 +12,8 @@ import { signIn } from "@/lib/auth";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — NEETx" },
-      { name: "description", content: "Sign in or create your free NEETx account to start practicing NEET MCQs." },
+      { title: "Sign in — Testum" },
+      { name: "description", content: "Sign in or create your free Testum account to start practicing NEET MCQs." },
     ],
   }),
   component: AuthPage,
@@ -37,7 +37,7 @@ function AuthPage() {
       return;
     }
     signIn(email, name || undefined);
-    toast.success(tab === "signup" ? "Welcome to NEETx!" : "Welcome back!");
+    toast.success(tab === "signup" ? "Welcome to Testum!" : "Welcome back!");
     navigate({ to: "/dashboard" });
   }
 
@@ -79,7 +79,7 @@ function AuthPage() {
             ))}
           </div>
         </div>
-        <div className="text-xs text-primary-foreground/70">© {new Date().getFullYear()} NEETx</div>
+        <div className="text-xs text-primary-foreground/70">© {new Date().getFullYear()} Testum</div>
       </div>
 
       {/* Form side */}
@@ -87,9 +87,9 @@ function AuthPage() {
         <Card className="w-full max-w-md border-border/60 p-8 shadow-elegant">
           <Link to="/" className="mb-6 inline-flex items-center gap-2 lg:hidden">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-brand-gradient">
-              <span className="font-display text-sm font-bold text-primary-foreground">N</span>
+              <span className="font-display text-sm font-bold text-primary-foreground">T</span>
             </div>
-            <span className="font-display text-lg font-bold">NEETx</span>
+            <span className="font-display text-lg font-bold">Testum</span>
           </Link>
           <h2 className="font-display text-2xl font-bold">Welcome</h2>
           <p className="mt-1 text-sm text-muted-foreground">

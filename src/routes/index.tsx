@@ -22,13 +22,13 @@ import { Badge } from "@/components/ui/badge";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "NEETx — India's #1 NEET MCQ Practice Platform" },
+      { title: "Testum — India's #1 NEET MCQ Practice Platform" },
       {
         name: "description",
         content:
           "Practice 4.5 Lakh+ NEET MCQs with chapter-wise tests, mock exams, AI rank predictor and live poll classes. Trusted by 100K+ aspirants.",
       },
-      { property: "og:title", content: "NEETx — Practice. Test. Ace NEET." },
+      { property: "og:title", content: "Testum — Practice. Test. Ace NEET." },
       {
         property: "og:description",
         content: "4.5L+ NEET MCQs, AI tools, live poll classes and chapter-wise mock tests.",
@@ -53,11 +53,6 @@ const features = [
   { icon: BookOpen, title: "NCERT + Smart Modules", desc: "Curated theory tightly linked to every question." },
 ];
 
-const testimonials = [
-  { name: "Aarav M.", score: "AIR 412", text: "82 out of 90 Biology questions matched my practice on NEETx. The chapter tests are unreal." },
-  { name: "Saanvi I.", score: "AIR 1,204", text: "Custom tests + DPP generator fixed my weak chapters in 6 weeks." },
-  { name: "Vihaan R.", score: "AIR 2,310", text: "The rank predictor was within 200 of my real rank. Trust them." },
-];
 
 function Landing() {
   return (
@@ -69,7 +64,7 @@ function Landing() {
       <HowItWorks />
       <Features />
       <PaperProof />
-      <Testimonials />
+      
       <CTA />
       <Footer />
     </div>
@@ -82,17 +77,17 @@ function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-lg bg-brand-gradient shadow-elegant">
-            <span className="font-display text-lg font-bold text-primary-foreground">N</span>
+            <span className="font-display text-lg font-bold text-primary-foreground">T</span>
           </div>
           <span className="font-display text-xl font-bold">
-            NEET<span className="text-brand-gradient">x</span>
+            Test<span className="text-brand-gradient">um</span>
           </span>
         </Link>
         <nav className="hidden items-center gap-8 md:flex">
           <a href="#subjects" className="text-sm text-muted-foreground hover:text-foreground">Subjects</a>
           <a href="#how" className="text-sm text-muted-foreground hover:text-foreground">How it works</a>
           <a href="#features" className="text-sm text-muted-foreground hover:text-foreground">Features</a>
-          <a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground">Reviews</a>
+          
         </nav>
         <div className="flex items-center gap-2">
           <Button variant="ghost" asChild>
@@ -316,7 +311,7 @@ function PaperProof() {
               We decoded NEET 2024 — and matched 82 of 90 Biology questions.
             </h2>
             <p className="mt-4 text-muted-foreground">
-              Every PYQ scan on the platform is placed side-by-side with the matching question on NEETx,
+              Every PYQ scan on the platform is placed side-by-side with the matching question on Testum,
               so you can verify the overlap before you trust the prep.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
@@ -335,9 +330,9 @@ function PaperProof() {
           <div className="grid grid-cols-2 gap-4">
             {[
               { tag: "NEET 2024 · Paper", title: "Q 47", body: "Site of fertilization in humans is …" },
-              { tag: "NEETx Bank", title: "B-006", body: "Site of fertilization in humans is …" },
+              { tag: "Testum Bank", title: "B-006", body: "Site of fertilization in humans is …" },
               { tag: "NEET 2024 · Paper", title: "Q 12", body: "Ratio of phenotypes in dihybrid cross …" },
-              { tag: "NEETx Bank", title: "B-002", body: "Ratio of phenotypes in dihybrid cross …" },
+              { tag: "Testum Bank", title: "B-002", body: "Ratio of phenotypes in dihybrid cross …" },
             ].map((c, i) => (
               <Card key={i} className="border-border/60 p-4">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{c.tag}</div>
@@ -355,35 +350,6 @@ function PaperProof() {
   );
 }
 
-function Testimonials() {
-  return (
-    <section id="testimonials" className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
-      <div className="mx-auto max-w-2xl text-center">
-        <Badge variant="secondary" className="mb-3">Loved by toppers</Badge>
-        <h2 className="font-display text-3xl font-bold sm:text-4xl">Real students, real ranks</h2>
-      </div>
-      <div className="mt-12 grid gap-6 md:grid-cols-3">
-        {testimonials.map((t) => (
-          <Card key={t.name} className="border-border/60 p-6">
-            <div className="flex items-center gap-0.5 text-warning">
-              {Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-current" />)}
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-foreground/90">"{t.text}"</p>
-            <div className="mt-5 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-brand-gradient font-semibold text-primary-foreground">
-                {t.name[0]}
-              </div>
-              <div>
-                <div className="text-sm font-semibold">{t.name}</div>
-                <div className="text-xs text-muted-foreground">NEET {t.score}</div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 function CTA() {
   return (
@@ -408,9 +374,9 @@ function Footer() {
         <div>
           <div className="flex items-center gap-2">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-brand-gradient">
-              <span className="font-display text-sm font-bold text-primary-foreground">N</span>
+              <span className="font-display text-sm font-bold text-primary-foreground">T</span>
             </div>
-            <span className="font-display text-lg font-bold">NEETx</span>
+            <span className="font-display text-lg font-bold">Testum</span>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             India's #1 NEET MCQ practice & testing platform.
@@ -432,7 +398,7 @@ function Footer() {
         ))}
       </div>
       <div className="border-t border-border/60 py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} NEETx. Built for NEET aspirants.
+        © {new Date().getFullYear()} Testum. Built for NEET aspirants.
       </div>
     </footer>
   );
