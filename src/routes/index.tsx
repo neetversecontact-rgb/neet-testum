@@ -82,10 +82,10 @@ function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-lg bg-brand-gradient shadow-elegant">
-            <span className="font-display text-lg font-bold text-primary-foreground">N</span>
+            <span className="font-display text-lg font-bold text-primary-foreground">T</span>
           </div>
           <span className="font-display text-xl font-bold">
-            NEET<span className="text-brand-gradient">x</span>
+            Test<span className="text-brand-gradient">um</span>
           </span>
         </Link>
         <nav className="hidden items-center gap-8 md:flex">
