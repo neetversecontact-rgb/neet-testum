@@ -53,11 +53,6 @@ const features = [
   { icon: BookOpen, title: "NCERT + Smart Modules", desc: "Curated theory tightly linked to every question." },
 ];
 
-const testimonials = [
-  { name: "Aarav M.", score: "AIR 412", text: "82 out of 90 Biology questions matched my practice on Testum. The chapter tests are unreal." },
-  { name: "Saanvi I.", score: "AIR 1,204", text: "Custom tests + DPP generator fixed my weak chapters in 6 weeks." },
-  { name: "Vihaan R.", score: "AIR 2,310", text: "The rank predictor was within 200 of my real rank. Trust them." },
-];
 
 function Landing() {
   return (
