@@ -1,15 +1,8 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard,
-  BookOpenCheck,
-  ClipboardList,
-  Trophy,
-  User,
   LogOut,
   Atom,
-  Sparkles,
-  Radio,
-  GraduationCap,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -24,38 +17,23 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { signOut, useUser } from "@/lib/auth";
+import { ICONS } from "@/lib/platformStore";
+import { usePlatformStore } from "@/hooks/usePlatformStore";
 import { toast } from "sonner";
-
-const nav = [
-  {
-    label: "Overview",
-    items: [
-      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: "Learn",
-    items: [
-      { title: "Practice", url: "/dashboard/practice", icon: BookOpenCheck },
-      { title: "Tests", url: "/dashboard/tests", icon: ClipboardList },
-      { title: "AI Tools", url: "/dashboard/ai", icon: Sparkles },
-      { title: "Live Classes", url: "/dashboard/live", icon: Radio },
-      { title: "Study Material", url: "/dashboard/material", icon: GraduationCap },
-    ],
-  },
-  {
-    label: "You",
-    items: [
-      { title: "Leaderboard", url: "/dashboard/leaderboard", icon: Trophy },
-      { title: "Profile", url: "/dashboard/profile", icon: User },
-    ],
-  },
-];
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const user = useUser();
   const navigate = useNavigate();
+  const { menu } = usePlatformStore();
+
+  const grouped = menu
+    .filter((item) => item.visible && (item.group !== "Admin" || user?.role === "admin" || user?.role === "super_admin"))
+    .sort((a, b) => a.order - b.order)
+    .reduce<Record<string, typeof menu>>((acc, item) => {
+      acc[item.group] = [...(acc[item.group] ?? []), item];
+      return acc;
+    }, {});
 
   const isActive = (url: string) => {
     if (url === "/dashboard") return pathname === "/dashboard";
@@ -83,21 +61,23 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {nav.map((group) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+        {Object.entries(grouped).map(([label, items]) => (
+          <SidebarGroup key={label}>
+            <SidebarGroupLabel>{label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item) => (
+                {items.map((item) => {
+                  const Icon = ICONS[item.icon] ?? ShieldCheck;
+                  return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
                       <Link to={item.url} className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4" />
+                        <Icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                ))}
+                );})}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

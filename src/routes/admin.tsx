@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Trash2,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +79,8 @@ function AdminPage() {
     );
   }
 
+  const adminUser = user;
+
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/90 backdrop-blur">
@@ -88,11 +91,11 @@ function AdminPage() {
             </div>
             <div>
               <div className="font-display font-bold">Testum Admin</div>
-              <div className="text-[11px] text-muted-foreground">{user.email}</div>
+              <div className="text-[11px] text-muted-foreground">{adminUser.email}</div>
             </div>
           </Link>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">{user.role.replace("_", " ")}</Badge>
+            <Badge variant="secondary">{adminUser.role.replace("_", " ")}</Badge>
             <Button variant="outline" asChild>
               <Link to="/dashboard">Student view</Link>
             </Button>
@@ -139,7 +142,7 @@ function AdminPage() {
   );
 }
 
-function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Users }) {
+function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
   return (
     <Card className="border-border/60 p-5">
       <div className="flex items-center justify-between">
