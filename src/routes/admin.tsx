@@ -61,10 +61,10 @@ function AdminPage() {
   const metrics = useMemo(() => adminMetrics(store), [store]);
 
   useEffect(() => {
-    if (!hasAdminAccess(user)) navigate({ to: "/dashboard", replace: true });
+    if (!user || !hasAdminAccess(user)) navigate({ to: "/dashboard", replace: true });
   }, [navigate, user]);
 
-  if (!hasAdminAccess(user)) {
+  if (!user || !hasAdminAccess(user)) {
     return (
       <div className="grid min-h-screen place-items-center bg-background p-6 text-center">
         <Card className="max-w-md border-border/60 p-8">
