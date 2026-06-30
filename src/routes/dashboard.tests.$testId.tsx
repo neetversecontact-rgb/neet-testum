@@ -25,6 +25,7 @@ import {
   Target,
 } from "lucide-react";
 import { TEST_SERIES, questionsForTest, SUBJECT_META } from "@/lib/mockData";
+import { usePlatformStore } from "@/hooks/usePlatformStore";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -38,7 +39,12 @@ function TestEngine() {
   const { testId } = Route.useParams();
   const navigate = useNavigate();
   const test = TEST_SERIES.find((t) => t.id === testId);
-  const questions = useMemo(() => questionsForTest(testId), [testId]);
+  const store = usePlatformStore();
+  const questions = useMemo(() => {
+    if (!test) return questionsForTest(testId);
+    const pool = test.subject === "full" ? store.questions : store.questions.filter((q) => q.subject === test.subject);
+    return pool.slice(0, test.totalQuestions);
+  }, [store.questions, test, testId]);
 
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<AnswerMap>({});

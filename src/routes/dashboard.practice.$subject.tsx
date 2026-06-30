@@ -12,7 +12,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { questionsBySubject, SUBJECT_META, type Subject } from "@/lib/mockData";
+import { SUBJECT_META, type Subject } from "@/lib/mockData";
+import { usePlatformStore } from "@/hooks/usePlatformStore";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/practice/$subject")({
@@ -22,7 +23,8 @@ export const Route = createFileRoute("/dashboard/practice/$subject")({
 function PracticeSubject() {
   const { subject } = Route.useParams() as { subject: Subject };
   const meta = SUBJECT_META[subject];
-  const all = useMemo(() => questionsBySubject(subject), [subject]);
+  const store = usePlatformStore();
+  const all = useMemo(() => store.questions.filter((q) => q.subject === subject), [store.questions, subject]);
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
