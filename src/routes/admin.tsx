@@ -36,7 +36,12 @@ import {
   adminMetrics,
   deleteQuestion,
   updateMenuItem,
+  addLiveSession,
+  updateLiveSession,
+  deleteLiveSession,
   type SidebarItem,
+  type LiveSession,
+  type Broadcast,
 } from "@/lib/platformStore";
 import { usePlatformStore } from "@/hooks/usePlatformStore";
 
@@ -57,7 +62,12 @@ const subjects = Object.keys(SUBJECT_META) as Subject[];
 function AdminPage() {
   const user = useUser();
   const navigate = useNavigate();
-  const store = usePlatformStore();
+  const [store, setStore] = useState(usePlatformStore());
+  useEffect(() => {
+    readStore().then(setStore);
+    const unsubscribe = subscribeStore(() => readStore().then(setStore));
+    return () => unsubscribe();
+  }, []);
   const metrics = useMemo(() => adminMetrics(store), [store]);
 
   useEffect(() => {
@@ -119,6 +129,7 @@ function AdminPage() {
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="broadcasts">Broadcasts</TabsTrigger>
             <TabsTrigger value="audit">Audit</TabsTrigger>
+            <TabsTrigger value="live-sessions">Live Sessions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="questions" className="m-0">
@@ -135,6 +146,9 @@ function AdminPage() {
           </TabsContent>
           <TabsContent value="audit" className="m-0">
             <AuditTrail audit={store.audit} />
+          </TabsContent>
+          <TabsContent value="live-sessions" className="m-0">
+            <LiveSessionManager liveSessions={store.liveSessions} />
           </TabsContent>
         </Tabs>
       </main>
@@ -196,7 +210,7 @@ function QuestionManager({ questions }: { questions: Question[] }) {
     toast.success("Question added");
   }
 
-  return (
+return (
     <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
       <Card className="border-border/60 p-6">
         <div className="mb-5 flex items-center justify-between">
@@ -435,7 +449,90 @@ function BroadcastManager({ broadcasts }: { broadcasts: ReturnType<typeof import
   );
 }
 
-function AuditTrail({ audit }: { audit: ReturnType<typeof import("@/lib/platformStore").readStore>["audit"] }) {
+function AuditTrail({ audit }: { audit: AuditEvent[] }) {}
+
+function LiveSessionManager({ liveSessions }: { liveSessions: LiveSession[] }) {
+  const [title, setTitle] = useState("");
+  const [educator, setEducator] = useState("");
+  const [description, setDescription] = useState("");
+  const [youtubeVideoId, setYoutubeVideoId] = useState("");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [isLive, setIsLive] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim() || !educator.trim() || !youtubeVideoId.trim() || !scheduledAt.trim()) {
+      toast.error("Title, Educator, YouTube Video ID, and Scheduled At are required");
+      return;
+    }
+    await addLiveSession({
+      title: title.trim(),
+      educator: educator.trim(),
+      description: description.trim(),
+      youtube_video_id: youtubeVideoId.trim(),
+      scheduled_at: new Date(scheduledAt).toISOString(),
+      is_live: isLive,
+    });
+    setTitle("");
+    setEducator("");
+    setDescription("");
+    setYoutubeVideoId("");
+    setScheduledAt("");
+    setIsLive(false);
+    toast.success("Live session added");
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+      <Card className="border-border/60 p-6">
+        <h2 className="font-display text-lg font-semibold">Live Session Management</h2>
+        <form onSubmit={submit} className="mt-4 space-y-4">
+          <Field label="Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Physics — Rotational Mechanics deep dive" /></Field>
+          <Field label="Educator"><Input value={educator} onChange={(e) => setEducator(e.target.value)} placeholder="Dr. R. Sharma" /></Field>
+          <Field label="Description"><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Detailed description of the session" /></Field>
+          <Field label="YouTube Video ID"><Input value={youtubeVideoId} onChange={(e) => setYoutubeVideoId(e.target.value)} placeholder="dQw4w9WgXcQ" /></Field>
+          <Field label="Scheduled At"><Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} /></Field>
+          <div className="flex items-center space-x-2">
+            <input type="checkbox" id="isLive" checked={isLive} onChange={(e) => setIsLive(e.target.checked)} />
+            <Label htmlFor="isLive">Mark as Live Now</Label>
+          </div>
+          <Button type="submit" className="w-full bg-brand-gradient text-primary-foreground"><Plus className="mr-1.5 h-4 w-4" /> Add Live Session</Button>
+        </form>
+      </Card>
+
+      <Card className="border-border/60 p-6">
+        <h2 className="font-display text-lg font-semibold">Upcoming Live Sessions</h2>
+        <div className="mt-4 max-h-[720px] space-y-2 overflow-auto pr-1">
+          {liveSessions.map((session) => (
+            <div key={session.id} className="rounded-lg border border-border/60 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary">{session.educator}</Badge>
+                    <Badge>{new Date(session.scheduled_at).toLocaleString()}</Badge>
+                    {session.is_live && <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive">LIVE</Badge>}
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-sm font-medium">{session.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">YouTube ID: {session.youtube_video_id}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => updateLiveSession(session.id, { is_live: !session.is_live })}>
+                    {session.is_live ? "End Live" : "Go Live"}
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => { deleteLiveSession(session.id); toast.success("Live session deleted"); }}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function BroadcastManager({ broadcasts }: { broadcasts: Broadcast[] }) {mport("@/lib/platformStore").readStore>["audit"] }) {
   return (
     <Card className="border-border/60 p-6">
       <h2 className="font-display text-lg font-semibold">Audit trail</h2>
