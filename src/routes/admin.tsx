@@ -532,7 +532,7 @@ function LiveSessionManager({ liveSessions }: { liveSessions: LiveSession[] }) {
   );
 }
 
-function BroadcastManager({ broadcasts }: { broadcasts: Broadcast[] }) {mport("@/lib/platformStore").readStore>["audit"] }) {
+function BroadcastManager({ broadcasts }: { broadcasts: Broadcast[] }) function AuditTrail({ audit }: { audit: AuditEvent[] }) {}
   return (
     <Card className="border-border/60 p-6">
       <h2 className="font-display text-lg font-semibold">Audit trail</h2>
