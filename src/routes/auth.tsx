@@ -1,15 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Atom, ArrowLeft } from "lucide-react";
+import { Atom, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { signIn } from "@/lib/auth";
+import { signInWithPassword, signUpWithPassword } from "@/lib/auth";
+import { lovable } from "@/integrations/lovable";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Sign in — Testum" },
@@ -25,33 +27,54 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please fill in all required fields");
-      return;
+    if (!email || !password) return toast.error("Please fill in all required fields");
+    if (tab === "signup" && !name) return toast.error("Please enter your name");
+    if (password.length < 6) return toast.error("Password must be at least 6 characters");
+
+    setLoading(true);
+    try {
+      if (tab === "signup") {
+        await signUpWithPassword(email, password, name);
+        toast.success("Welcome to Testum!");
+      } else {
+        await signInWithPassword(email, password);
+        toast.success("Welcome back!");
+      }
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Authentication failed");
+    } finally {
+      setLoading(false);
     }
-    if (tab === "signup" && !name) {
-      toast.error("Please enter your name");
-      return;
-    }
-    signIn(email, name || undefined);
-    toast.success(tab === "signup" ? "Welcome to Testum!" : "Welcome back!");
-    navigate({ to: "/dashboard" });
   }
 
-  function handleGoogle() {
-    // Mock Google sign-in until Lovable Cloud is enabled
-    const demo = `student${Math.floor(Math.random() * 999)}@gmail.com`;
-    signIn(demo, "Google Student");
-    toast.success("Signed in with Google");
-    navigate({ to: "/dashboard" });
+  async function handleGoogle() {
+    setGoogleLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error(result.error.message || "Google sign-in failed");
+        return;
+      }
+      if (result.redirected) return;
+      toast.success("Signed in with Google");
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
+      setGoogleLoading(false);
+    }
   }
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Brand side */}
       <div className="relative hidden overflow-hidden bg-brand-gradient p-12 text-primary-foreground lg:flex lg:flex-col">
         <Link to="/" className="flex items-center gap-2 text-primary-foreground/90 hover:text-primary-foreground">
           <ArrowLeft className="h-4 w-4" /> <span className="text-sm">Back to home</span>
@@ -67,11 +90,7 @@ function AuthPage() {
             Join 100K+ aspirants practicing 4.5L+ decoded NEET MCQs with AI-powered analytics.
           </p>
           <div className="mt-10 space-y-3 text-sm">
-            {[
-              "4.5L+ decoded questions across PCB",
-              "AI rank & college predictor",
-              "Live poll classes with educators",
-            ].map((t) => (
+            {["4.5L+ decoded questions across PCB", "AI rank & college predictor", "Live poll classes with educators"].map((t) => (
               <div key={t} className="flex items-center gap-2.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
                 {t}
@@ -82,7 +101,6 @@ function AuthPage() {
         <div className="text-xs text-primary-foreground/70">© {new Date().getFullYear()} Testum</div>
       </div>
 
-      {/* Form side */}
       <div className="flex items-center justify-center p-6 sm:p-12">
         <Card className="w-full max-w-md border-border/60 p-8 shadow-elegant">
           <Link to="/" className="mb-6 inline-flex items-center gap-2 lg:hidden">
@@ -92,9 +110,7 @@ function AuthPage() {
             <span className="font-display text-lg font-bold">Testum</span>
           </Link>
           <h2 className="font-display text-2xl font-bold">Welcome</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Sign in to continue your NEET prep
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Sign in to continue your NEET prep</p>
 
           <Tabs value={tab} onValueChange={(v) => setTab(v as "signin" | "signup")} className="mt-6">
             <TabsList className="grid w-full grid-cols-2">
@@ -115,10 +131,10 @@ function AuthPage() {
               </div>
               <div>
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5" />
+                <Input id="password" type="password" placeholder="At least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5" />
               </div>
-              <Button type="submit" className="w-full bg-brand-gradient text-primary-foreground shadow-elegant hover:opacity-90">
-                {tab === "signin" ? "Sign in" : "Create account"}
+              <Button type="submit" disabled={loading} className="w-full bg-brand-gradient text-primary-foreground shadow-elegant hover:opacity-90">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : tab === "signin" ? "Sign in" : "Create account"}
               </Button>
             </form>
           </Tabs>
@@ -129,8 +145,8 @@ function AuthPage() {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <Button variant="outline" onClick={handleGoogle} className="w-full gap-2">
-            <GoogleLogo /> Continue with Google
+          <Button variant="outline" onClick={handleGoogle} disabled={googleLoading} className="w-full gap-2">
+            {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleLogo />} Continue with Google
           </Button>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">

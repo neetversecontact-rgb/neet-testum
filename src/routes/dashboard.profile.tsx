@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { signOut, useUser, setUser } from "@/lib/auth";
+import { signOut, useUser } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { LogOut } from "lucide-react";
@@ -28,13 +29,17 @@ function Profile() {
 
   if (!user) return null;
 
-  function save() {
-    setUser({ ...user!, name, targetYear: year });
+  async function save() {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ name, target_year: year })
+      .eq("id", user!.id);
+    if (error) return toast.error(error.message);
     toast.success("Profile updated");
   }
 
-  function handleSignOut() {
-    signOut();
+  async function handleSignOut() {
+    await signOut();
     toast.success("Signed out");
     navigate({ to: "/" });
   }
