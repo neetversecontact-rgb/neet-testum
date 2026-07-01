@@ -99,7 +99,20 @@ export function hasAdminAccess(user = cache) {
   return user?.role === "admin" || user?.role === "super_admin";
 }
 
-export function useUser() {
+export function useUser(): User | null {
+  const [user, setLocal] = useState<User | null>(cache);
+  useEffect(() => {
+    const fn = (u: User | null) => setLocal(u);
+    LISTENERS.add(fn);
+    ensureUser().then((u) => setLocal(u));
+    return () => {
+      LISTENERS.delete(fn);
+    };
+  }, []);
+  return user;
+}
+
+export function useAuth(): { user: User | null; ready: boolean } {
   const [user, setLocal] = useState<User | null>(cache);
   const [ready, setReady] = useState(loaded);
   useEffect(() => {
@@ -118,3 +131,4 @@ export function useUser() {
   }, []);
   return { user, ready };
 }
+

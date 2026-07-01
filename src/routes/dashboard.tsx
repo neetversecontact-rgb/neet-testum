@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { useUser } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardLayout() {
   const navigate = useNavigate();
-  const { user, ready } = useUser();
+  const { user, ready } = useAuth();
 
   useEffect(() => {
     if (ready && !user) navigate({ to: "/auth", replace: true });
