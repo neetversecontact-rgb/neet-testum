@@ -28,6 +28,8 @@ import { TEST_SERIES, questionsForTest, SUBJECT_META } from "@/lib/mockData";
 import { usePlatformStore } from "@/hooks/usePlatformStore";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { addTestAttempt } from "@/lib/supabaseClient";
+import { getUser } from "@/lib/auth";
 
 export const Route = createFileRoute("/dashboard/tests/$testId")({
   component: TestEngine,
@@ -52,6 +54,8 @@ function TestEngine() {
   const [secondsLeft, setSecondsLeft] = useState((test?.duration ?? 15) * 60);
   const [submitted, setSubmitted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [startTime] = useState(Date.now());
+  const user = getUser();
 
   useEffect(() => {
     if (submitted) return;
@@ -62,9 +66,38 @@ function TestEngine() {
   useEffect(() => {
     if (secondsLeft === 0 && !submitted) {
       toast.warning("Time's up — submitting your test");
-      setSubmitted(true);
+      handleSubmit();
     }
   }, [secondsLeft, submitted]);
+
+  async function handleSubmit() {
+    if (!user || !test) return;
+    let correct = 0, wrong = 0;
+    questions.forEach((q) => {
+      const a = answers[q.id];
+      if (a === q.correct) correct++;
+      else if (a) wrong++;
+    });
+    const score = correct * 4 - wrong * 1;
+    const accuracy = correct + wrong > 0 ? (correct / (correct + wrong)) : 0;
+    const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+    try {
+      await addTestAttempt({
+        user_id: user.id,
+        test_id: testId,
+        score,
+        accuracy,
+        time_taken_seconds: timeTaken,
+        answers: answers,
+      });
+      setSubmitted(true);
+      toast.success("Test submitted and saved!");
+    } catch (error) {
+      console.error("Error saving test attempt:", error);
+      toast.error("Failed to save test attempt");
+      setSubmitted(true);
+    }
+  }
 
   if (!test || questions.length === 0) {
     return (
@@ -222,7 +255,7 @@ function TestEngine() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Continue test</AlertDialogCancel>
-            <AlertDialogAction className="bg-brand-gradient" onClick={() => setSubmitted(true)}>
+            <AlertDialogAction className="bg-brand-gradient" onClick={handleSubmit}>
               Submit
             </AlertDialogAction>
           </AlertDialogFooter>
