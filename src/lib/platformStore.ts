@@ -12,6 +12,15 @@ import {
 } from "lucide-react";
 import { QUESTIONS, TEST_SERIES, type Question, type Subject } from "@/lib/mockData";
 import { getUser } from "@/lib/auth";
+import {
+  getQuestions, addQuestion as addQuestionSupabase, updateQuestion as updateQuestionSupabase, deleteQuestion as deleteQuestionSupabase,
+  getTests, addTest as addTestSupabase, updateTest as updateTestSupabase, deleteTest as deleteTestSupabase,
+  getLiveSessions, addLiveSession as addLiveSessionSupabase, updateLiveSession as updateLiveSessionSupabase, deleteLiveSession as deleteLiveSessionSupabase,
+  getSidebarItems, addSidebarItem as addSidebarItemSupabase, updateSidebarItem as updateSidebarItemSupabase, deleteSidebarItem as deleteSidebarItemSupabase,
+  getBroadcasts, addBroadcast as addBroadcastSupabase, updateBroadcast as updateBroadcastSupabase, deleteBroadcast as deleteBroadcastSupabase,
+  getTestAttempts, addTestAttempt as addTestAttemptSupabase,
+  getPracticeProgress, addPracticeProgress as addPracticeProgressSupabase, updatePracticeProgress as updatePracticeProgressSupabase,
+} from "./supabaseClient";
 
 export type SidebarItem = {
   id: string;
@@ -21,6 +30,7 @@ export type SidebarItem = {
   group: "Overview" | "Learn" | "Performance" | "Admin";
   order: number;
   visible: boolean;
+  admin_only?: boolean; // Added for admin panel control
 };
 
 export type AuditEvent = {
@@ -37,6 +47,19 @@ export type Broadcast = {
   message: string;
   segment: "all" | Subject | "low_accuracy" | "test_takers";
   status: "draft" | "scheduled" | "sent";
+  scheduled_at?: string; // Added for scheduling
+  createdAt: string;
+};
+
+export type LiveSession = {
+  id: string;
+  title: string;
+  educator: string;
+  description?: string;
+  youtube_video_id: string;
+  scheduled_at: string;
+  is_live: boolean;
+  students_count: number;
   createdAt: string;
 };
 
@@ -45,6 +68,7 @@ type Store = {
   questions: Question[];
   broadcasts: Broadcast[];
   audit: AuditEvent[];
+  liveSessions: LiveSession[]; // Added live sessions to store
 };
 
 export const ICONS = {
@@ -70,7 +94,7 @@ const defaultMenu: SidebarItem[] = [
   { id: "material", title: "Study Material", url: "/dashboard/material", icon: "GraduationCap", group: "Learn", order: 6, visible: true },
   { id: "leaderboard", title: "Leaderboard", url: "/dashboard/leaderboard", icon: "Trophy", group: "Performance", order: 7, visible: true },
   { id: "profile", title: "Profile", url: "/dashboard/profile", icon: "User", group: "Performance", order: 8, visible: true },
-  { id: "analytics", title: "Analytics", url: "/admin", icon: "BarChart3", group: "Admin", order: 9, visible: true },
+  { id: "analytics", title: "Analytics", url: "/admin", icon: "BarChart3", group: "Admin", order: 9, visible: true, admin_only: true },
 ];
 
 const seedAudit: AuditEvent[] = [
@@ -78,6 +102,7 @@ const seedAudit: AuditEvent[] = [
   { id: "a2", actor: "System", action: "Published dynamic sidebar", target: "Student navigation", createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString() },
 ];
 
+// --- Local Storage fallback for initial development/offline, will be replaced by Supabase calls ---
 function baseStore(): Store {
   return {
     menu: defaultMenu,
@@ -93,12 +118,31 @@ function baseStore(): Store {
       },
     ],
     audit: seedAudit,
+    liveSessions: [],
   };
 }
 
-export function readStore(): Store {
+// This function will now primarily fetch from Supabase, with a local fallback
+export async function readStore(): Promise<Store> {
   if (typeof window === "undefined") return baseStore();
   try {
+    const [questions, menu, broadcasts, liveSessions] = await Promise.all([
+      getQuestions(),
+      getSidebarItems(),
+      getBroadcasts(),
+      getLiveSessions(),
+    ]);
+
+    return {
+      menu: menu.length ? menu : defaultMenu,
+      questions: questions.length ? questions : QUESTIONS,
+      broadcasts: broadcasts.length ? broadcasts : baseStore().broadcasts,
+      audit: seedAudit, // Audit log will be handled separately or fetched from DB
+      liveSessions: liveSessions.length ? liveSessions : [],
+    };
+  } catch (error) {
+    console.error("Error fetching from Supabase, falling back to local storage:", error);
+    // Fallback to local storage if Supabase fetch fails
     const raw = localStorage.getItem(KEY);
     if (!raw) {
       const seeded = baseStore();
@@ -112,26 +156,16 @@ export function readStore(): Store {
       menu: parsed.menu?.length ? parsed.menu : defaultMenu,
       questions: parsed.questions?.length ? parsed.questions : QUESTIONS,
       audit: parsed.audit?.length ? parsed.audit : seedAudit,
+      liveSessions: parsed.liveSessions?.length ? parsed.liveSessions : [],
     };
-  } catch {
-    return baseStore();
   }
 }
 
+// writeStore will no longer be used for core data, only for audit log if needed locally
 function writeStore(next: Store) {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEY, JSON.stringify(next));
   window.dispatchEvent(new CustomEvent("testum-store-change"));
-}
-
-export function subscribeStore(listener: () => void) {
-  if (typeof window === "undefined") return () => undefined;
-  window.addEventListener("testum-store-change", listener);
-  window.addEventListener("storage", listener);
-  return () => {
-    window.removeEventListener("testum-store-change", listener);
-    window.removeEventListener("storage", listener);
-  };
 }
 
 function log(next: Store, action: string, target: string) {
@@ -146,71 +180,121 @@ function log(next: Store, action: string, target: string) {
     },
     ...next.audit,
   ].slice(0, 80);
+  writeStore(next); // Keep local audit log for now
 }
 
-export function updateMenuItem(id: string, patch: Partial<SidebarItem>) {
-  const store = readStore();
-  store.menu = store.menu.map((item) => item.id === id ? { ...item, ...patch } : item);
-  log(store, "Updated sidebar item", id);
-  writeStore(store);
+export async function updateMenuItem(id: string, patch: Partial<SidebarItem>) {
+  const store = await readStore(); // Read from Supabase
+  const updatedItem = await updateSidebarItemSupabase(id, patch);
+  if (updatedItem) {
+    store.menu = store.menu.map((item) => item.id === id ? { ...item, ...patch } : item);
+    log(store, "Updated sidebar item", id);
+    // No need to writeStore(store) as data is now in Supabase
+  }
 }
 
-export function addMenuItem(item: Omit<SidebarItem, "id" | "order">) {
-  const store = readStore();
+export async function addMenuItem(item: Omit<SidebarItem, "id" | "order">) {
+  const store = await readStore(); // Read from Supabase
   const maxOrder = Math.max(0, ...store.menu.map((m) => m.order));
-  const next = { ...item, id: crypto.randomUUID(), order: maxOrder + 1 };
-  store.menu.push(next);
-  log(store, "Created sidebar item", next.title);
-  writeStore(store);
+  const next = { ...item, order: maxOrder + 1 };
+  const newMenuItem = await addSidebarItemSupabase(next);
+  if (newMenuItem) {
+    log(store, "Created sidebar item", newMenuItem[0].title);
+  }
 }
 
-export function addQuestion(question: Omit<Question, "id">) {
-  const store = readStore();
-  const next = { ...question, id: crypto.randomUUID() };
-  store.questions = [next, ...store.questions];
-  log(store, "Added question", `${question.subject} · ${question.chapter}`);
-  writeStore(store);
+export async function addQuestion(question: Omit<Question, "id">) {
+  const store = await readStore(); // Read from Supabase
+  const newQuestion = await addQuestionSupabase(question);
+  if (newQuestion) {
+    log(store, "Added question", `${question.subject} · ${question.chapter}`);
+  }
 }
 
-export function deleteQuestion(id: string) {
-  const store = readStore();
-  store.questions = store.questions.filter((q) => q.id !== id);
-  log(store, "Deleted question", id);
-  writeStore(store);
+export async function deleteQuestion(id: string) {
+  const store = await readStore(); // Read from Supabase
+  const deleted = await deleteQuestionSupabase(id);
+  if (deleted) {
+    log(store, "Deleted question", id);
+  }
 }
 
-export function addBroadcast(broadcast: Omit<Broadcast, "id" | "createdAt">) {
-  const store = readStore();
-  const next = { ...broadcast, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
-  store.broadcasts = [next, ...store.broadcasts];
-  log(store, "Created segmented broadcast", `${next.title} → ${next.segment}`);
-  writeStore(store);
+export async function addBroadcast(broadcast: Omit<Broadcast, "id" | "createdAt">) {
+  const store = await readStore(); // Read from Supabase
+  const newBroadcast = await addBroadcastSupabase(broadcast);
+  if (newBroadcast) {
+    log(store, "Created segmented broadcast", `${newBroadcast[0].title} → ${newBroadcast[0].segment}`);
+  }
 }
 
-export function getPlatformQuestions() {
-  return readStore().questions;
+// New functions for Live Sessions
+export async function addLiveSession(session: Omit<LiveSession, "id" | "createdAt" | "students_count">) {
+  const store = await readStore();
+  const newSession = await addLiveSessionSupabase({ ...session, students_count: 0 });
+  if (newSession) {
+    log(store, "Created live session", newSession[0].title);
+  }
 }
 
-export function getSidebarMenu() {
-  return readStore().menu.filter((item) => item.visible).sort((a, b) => a.order - b.order);
+export async function updateLiveSession(id: string, patch: Partial<LiveSession>) {
+  const store = await readStore();
+  const updatedSession = await updateLiveSessionSupabase(id, patch);
+  if (updatedSession) {
+    log(store, "Updated live session", id);
+  }
 }
 
-export function adminMetrics(store = readStore()) {
-  const bySubject = store.questions.reduce<Record<string, number>>((acc, q) => {
+export async function deleteLiveSession(id: string) {
+  const store = await readStore();
+  const deleted = await deleteLiveSessionSupabase(id);
+  if (deleted) {
+    log(store, "Deleted live session", id);
+  }
+}
+
+// Existing functions, now fetching from Supabase
+export async function getPlatformQuestions() {
+  return await getQuestions();
+}
+
+export async function getSidebarMenu() {
+  const menu = await getSidebarItems();
+  return menu.filter((item) => item.is_visible).sort((a, b) => a.order_index - b.order_index);
+}
+
+export async function adminMetrics(store = baseStore()) { // Will need to update this to fetch real data
+  const questions = await getQuestions();
+  const tests = await getTests();
+  const attempts = await getTestAttempts(getUser()?.id || ''); // Needs user ID
+
+  const bySubject = questions.reduce<Record<string, number>>((acc, q) => {
     acc[q.subject] = (acc[q.subject] ?? 0) + 1;
     return acc;
   }, {});
-  const byDifficulty = store.questions.reduce<Record<string, number>>((acc, q) => {
+  const byDifficulty = questions.reduce<Record<string, number>>((acc, q) => {
     acc[q.difficulty] = (acc[q.difficulty] ?? 0) + 1;
     return acc;
   }, {});
   return {
-    users: 100284,
-    questions: store.questions.length,
-    tests: TEST_SERIES.length,
-    attempts: 48216,
-    avgAccuracy: 82,
+    users: 100284, // Mock data for now
+    questions: questions.length,
+    tests: tests.length,
+    attempts: attempts.length, // Real attempts count
+    avgAccuracy: 82, // Mock data for now
     bySubject,
     byDifficulty,
   };
+}
+
+// Helper to get current live session
+export async function getCurrentLiveSession(): Promise<LiveSession | null> {
+  const sessions = await getLiveSessions();
+  const now = new Date();
+  // Find a session that is marked as live or scheduled to be live now
+  const activeSession = sessions.find(session => {
+    const scheduledTime = new Date(session.scheduled_at);
+    // Consider a session live if it's marked as such, or if it's scheduled to be live within a reasonable window
+    return session.is_live || (scheduledTime <= now && (scheduledTime.getTime() + 2 * 60 * 60 * 1000) > now); // Live for 2 hours after scheduled time
+  });
+  return activeSession || null;
 }
