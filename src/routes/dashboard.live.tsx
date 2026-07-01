@@ -3,18 +3,29 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Radio, Calendar, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getCurrentLiveSession, readStore, subscribeStore, LiveSession } from "@/lib/platformStore";
 
 export const Route = createFileRoute("/dashboard/live")({
   component: LiveClasses,
 });
 
-const classes = [
-  { title: "Physics — Rotational Mechanics deep dive", educator: "Dr. R. Sharma", time: "Today · 6:00 PM", live: true, students: 1240 },
-  { title: "Biology — Genetics: Numerical practice", educator: "Dr. M. Iyer", time: "Tomorrow · 5:00 PM", students: 980 },
-  { title: "Chemistry — Organic name reactions", educator: "Dr. A. Bose", time: "Thu · 7:00 PM", students: 1102 },
-];
-
 function LiveClasses() {
+  const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
+  const [currentLive, setCurrentLive] = useState<LiveSession | null>(null);
+
+  useEffect(() => {
+    const fetchSessions = async () => {
+      const store = await readStore();
+      setLiveSessions(store.liveSessions);
+      setCurrentLive(await getCurrentLiveSession());
+    };
+
+    fetchSessions();
+    const unsubscribe = subscribeStore(fetchSessions);
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -22,9 +33,35 @@ function LiveClasses() {
         <p className="text-sm text-muted-foreground">Interactive sessions with real-time MCQ polls</p>
       </div>
 
+      {currentLive && (
+        <Card className="border-border/60 p-5">
+          <h2 className="font-display text-xl font-bold mb-3">Live Now: {currentLive.title}</h2>
+          <div className="relative aspect-video w-full rounded-lg overflow-hidden">
+            <iframe
+              className="absolute inset-0 w-full h-full"
+              src={`https://www.youtube.com/embed/${currentLive.youtube_video_id}?autoplay=1&modestbranding=1&rel=0`}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+            ></iframe>
+          </div>
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1"><Calendar className="h-4 w-4" /> {new Date(currentLive.scheduled_at).toLocaleString()}</span>
+              <span className="inline-flex items-center gap-1"><Users className="h-4 w-4" /> {currentLive.students_count} students</span>
+            </div>
+            <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive">LIVE</Badge>
+          </div>
+          {currentLive.description && <p className="mt-3 text-sm text-muted-foreground">{currentLive.description}</p>}
+        </Card>
+      )}
+
+      <h2 className="font-display text-xl font-bold mt-8">Upcoming Sessions</h2>
       <div className="grid gap-5 md:grid-cols-2">
-        {classes.map((c) => (
-          <Card key={c.title} className="border-border/60 p-5">
+        {liveSessions.filter(s => !s.is_live || s.id !== currentLive?.id).map((c) => (
+          <Card key={c.id} className="border-border/60 p-5">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-brand-gradient text-primary-foreground shadow-elegant">
@@ -34,16 +71,15 @@ function LiveClasses() {
                   <h3 className="font-display font-semibold">{c.title}</h3>
                   <p className="text-xs text-muted-foreground">{c.educator}</p>
                   <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {c.time}</span>
-                    <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {c.students}</span>
+                    <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(c.scheduled_at).toLocaleString()}</span>
+                    <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {c.students_count}</span>
                   </div>
                 </div>
               </div>
-              {c.live && <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive">LIVE</Badge>}
             </div>
             <div className="mt-4 flex justify-end">
               <Button size="sm" className="bg-brand-gradient text-primary-foreground shadow-elegant">
-                {c.live ? "Join now" : "Set reminder"}
+                Set reminder
               </Button>
             </div>
           </Card>
