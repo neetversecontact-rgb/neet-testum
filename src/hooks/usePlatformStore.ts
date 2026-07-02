@@ -1,27 +1,18 @@
-import { useEffect, useState } from "react";
-import { readStore, subscribeStore, Store } from "@/lib/platformStore";
+import { useSyncExternalStore } from "react";
+import { readStore, subscribeStore, type Store } from "@/lib/platformStore";
 
-export function usePlatformStore() {
-  const [store, setStore] = useState<Store | null>(null);
+const serverStore: Store = {
+  menu: [],
+  questions: [],
+  broadcasts: [],
+  audit: [],
+  liveSessions: [],
+};
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchAndSetStore = async () => {
-      const fetchedStore = await readStore();
-      if (isMounted) {
-        setStore(fetchedStore);
-      }
-    };
-
-    fetchAndSetStore();
-    const unsubscribe = subscribeStore(fetchAndSetStore);
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, []);
-
-  return store;
+export function usePlatformStore(): Store {
+  return useSyncExternalStore(
+    (cb) => subscribeStore(cb),
+    () => readStore(),
+    () => serverStore,
+  );
 }

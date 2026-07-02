@@ -42,6 +42,7 @@ import {
   type SidebarItem,
   type LiveSession,
   type Broadcast,
+  type AuditEvent,
 } from "@/lib/platformStore";
 import { usePlatformStore } from "@/hooks/usePlatformStore";
 
@@ -62,12 +63,7 @@ const subjects = Object.keys(SUBJECT_META) as Subject[];
 function AdminPage() {
   const user = useUser();
   const navigate = useNavigate();
-  const [store, setStore] = useState(usePlatformStore());
-  useEffect(() => {
-    readStore().then(setStore);
-    const unsubscribe = subscribeStore(() => readStore().then(setStore));
-    return () => unsubscribe();
-  }, []);
+  const store = usePlatformStore();
   const metrics = useMemo(() => adminMetrics(store), [store]);
 
   useEffect(() => {
@@ -123,7 +119,7 @@ function AdminPage() {
         </section>
 
         <Tabs defaultValue="questions" className="space-y-5">
-          <TabsList className="grid w-full grid-cols-5 lg:w-fit">
+          <TabsList className="grid w-full grid-cols-3 lg:w-fit lg:grid-cols-6">
             <TabsTrigger value="questions">Questions</TabsTrigger>
             <TabsTrigger value="sidebar">Sidebar</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>

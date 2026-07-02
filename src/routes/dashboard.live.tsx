@@ -3,28 +3,18 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Radio, Calendar, Users } from "lucide-react";
-import { useEffect, useState } from "react";
-import { getCurrentLiveSession, readStore, subscribeStore, LiveSession } from "@/lib/platformStore";
+import { useMemo } from "react";
+import { getCurrentLiveSession } from "@/lib/platformStore";
+import { usePlatformStore } from "@/hooks/usePlatformStore";
 
 export const Route = createFileRoute("/dashboard/live")({
   component: LiveClasses,
 });
 
 function LiveClasses() {
-  const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
-  const [currentLive, setCurrentLive] = useState<LiveSession | null>(null);
-
-  useEffect(() => {
-    const fetchSessions = async () => {
-      const store = await readStore();
-      setLiveSessions(store.liveSessions);
-      setCurrentLive(await getCurrentLiveSession());
-    };
-
-    fetchSessions();
-    const unsubscribe = subscribeStore(fetchSessions);
-    return () => unsubscribe();
-  }, []);
+  const store = usePlatformStore();
+  const currentLive = useMemo(() => getCurrentLiveSession(store), [store]);
+  const liveSessions = store.liveSessions;
 
   return (
     <div className="space-y-6">
@@ -45,7 +35,7 @@ function LiveClasses() {
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               referrerPolicy="strict-origin-when-cross-origin"
               allowFullScreen
-            ></iframe>
+            />
           </div>
           <div className="mt-4 flex items-center justify-between">
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -60,7 +50,7 @@ function LiveClasses() {
 
       <h2 className="font-display text-xl font-bold mt-8">Upcoming Sessions</h2>
       <div className="grid gap-5 md:grid-cols-2">
-        {liveSessions.filter(s => !s.is_live || s.id !== currentLive?.id).map((c) => (
+        {liveSessions.filter((s) => s.id !== currentLive?.id).map((c) => (
           <Card key={c.id} className="border-border/60 p-5">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
@@ -84,6 +74,9 @@ function LiveClasses() {
             </div>
           </Card>
         ))}
+        {liveSessions.length === 0 && (
+          <p className="text-sm text-muted-foreground">No upcoming sessions yet. Admins can schedule from the Admin panel.</p>
+        )}
       </div>
     </div>
   );

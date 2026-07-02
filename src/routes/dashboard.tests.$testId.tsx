@@ -24,12 +24,10 @@ import {
   XCircle,
   Target,
 } from "lucide-react";
-import { TEST_SERIES, questionsForTest, SUBJECT_META } from "@/lib/mockData";
+import { TEST_SERIES, questionsForTest, SUBJECT_META, type Question, type Subject } from "@/lib/mockData";
 import { usePlatformStore } from "@/hooks/usePlatformStore";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { addTestAttempt } from "@/lib/supabaseClient";
-import { getUser } from "@/lib/auth";
 
 export const Route = createFileRoute("/dashboard/tests/$testId")({
   component: TestEngine,
@@ -42,10 +40,13 @@ function TestEngine() {
   const navigate = useNavigate();
   const test = TEST_SERIES.find((t) => t.id === testId);
   const store = usePlatformStore();
-  const questions = useMemo(() => {
+  const questions = useMemo<Question[]>(() => {
     if (!test) return questionsForTest(testId);
-    const pool = test.subject === "full" ? store.questions : store.questions.filter((q) => q.subject === test.subject);
-    return pool.slice(0, test.totalQuestions);
+    const pool = test.subject === "full"
+      ? store.questions
+      : store.questions.filter((q) => q.subject === test.subject);
+    const chosen = pool.slice(0, test.totalQuestions);
+    return chosen.length > 0 ? chosen : questionsForTest(testId);
   }, [store.questions, test, testId]);
 
   const [idx, setIdx] = useState(0);
@@ -54,8 +55,6 @@ function TestEngine() {
   const [secondsLeft, setSecondsLeft] = useState((test?.duration ?? 15) * 60);
   const [submitted, setSubmitted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [startTime] = useState(Date.now());
-  const user = getUser();
 
   useEffect(() => {
     if (submitted) return;
@@ -63,41 +62,17 @@ function TestEngine() {
     return () => clearInterval(t);
   }, [submitted]);
 
+  function handleSubmit() {
+    setSubmitted(true);
+    toast.success("Test submitted!");
+  }
+
   useEffect(() => {
     if (secondsLeft === 0 && !submitted) {
       toast.warning("Time's up — submitting your test");
       handleSubmit();
     }
   }, [secondsLeft, submitted]);
-
-  async function handleSubmit() {
-    if (!user || !test) return;
-    let correct = 0, wrong = 0;
-    questions.forEach((q) => {
-      const a = answers[q.id];
-      if (a === q.correct) correct++;
-      else if (a) wrong++;
-    });
-    const score = correct * 4 - wrong * 1;
-    const accuracy = correct + wrong > 0 ? (correct / (correct + wrong)) : 0;
-    const timeTaken = Math.floor((Date.now() - startTime) / 1000);
-    try {
-      await addTestAttempt({
-        user_id: user.id,
-        test_id: testId,
-        score,
-        accuracy,
-        time_taken_seconds: timeTaken,
-        answers: answers,
-      });
-      setSubmitted(true);
-      toast.success("Test submitted and saved!");
-    } catch (error) {
-      console.error("Error saving test attempt:", error);
-      toast.error("Failed to save test attempt");
-      setSubmitted(true);
-    }
-  }
 
   if (!test || questions.length === 0) {
     return (
@@ -118,6 +93,7 @@ function TestEngine() {
   function setAnswer(opt: "A" | "B" | "C" | "D") {
     setAnswers((a) => ({ ...a, [q.id]: opt }));
   }
+  const subjectMeta = SUBJECT_META[q.subject as Subject] ?? { label: q.subject, color: "primary" };
   function toggleMark() {
     setMarked((m) => {
       const n = new Set(m);
@@ -151,8 +127,8 @@ function TestEngine() {
         <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
           <Card className="mx-auto max-w-3xl border-border/60 p-6 sm:p-8">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge style={{ background: `color-mix(in oklab, var(--${SUBJECT_META[q.subject].color}) 18%, transparent)`, color: `var(--${SUBJECT_META[q.subject].color})` }}>
-                {SUBJECT_META[q.subject].label}
+              <Badge style={{ background: `color-mix(in oklab, var(--${subjectMeta.color}) 18%, transparent)`, color: `var(--${subjectMeta.color})` }}>
+                {subjectMeta.label}
               </Badge>
               <Badge variant="secondary">{q.chapter}</Badge>
               <Badge variant="outline">{q.difficulty}</Badge>
