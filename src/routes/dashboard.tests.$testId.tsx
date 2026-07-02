@@ -127,8 +127,8 @@ function TestEngine() {
         <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
           <Card className="mx-auto max-w-3xl border-border/60 p-6 sm:p-8">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge style={{ background: `color-mix(in oklab, var(--${SUBJECT_META[q.subject].color}) 18%, transparent)`, color: `var(--${SUBJECT_META[q.subject].color})` }}>
-                {SUBJECT_META[q.subject].label}
+              <Badge style={{ background: `color-mix(in oklab, var(--${subjectMeta.color}) 18%, transparent)`, color: `var(--${subjectMeta.color})` }}>
+                {subjectMeta.label}
               </Badge>
               <Badge variant="secondary">{q.chapter}</Badge>
               <Badge variant="outline">{q.difficulty}</Badge>
