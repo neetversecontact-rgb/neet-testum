@@ -147,18 +147,17 @@ export const leaderboard = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("test_attempts")
-      .select("user_id, score, accuracy, profile:profiles(name)")
+      .select("user_id, score, accuracy")
       .order("score", { ascending: false })
-      .limit(50);
+      .limit(200);
     if (error) throw new Error(error.message);
 
-    // Aggregate best score per user
-    const byUser = new Map<string, { name: string; bestScore: number; bestAccuracy: number; attempts: number }>();
+    const byUser = new Map<string, { bestScore: number; bestAccuracy: number; attempts: number }>();
     for (const row of data ?? []) {
+      if (!row.user_id) continue;
       const existing = byUser.get(row.user_id);
-      const name = row.profile?.name ?? "Aspirant";
       if (!existing) {
-        byUser.set(row.user_id, { name, bestScore: row.score ?? 0, bestAccuracy: row.accuracy ?? 0, attempts: 1 });
+        byUser.set(row.user_id, { bestScore: row.score ?? 0, bestAccuracy: row.accuracy ?? 0, attempts: 1 });
       } else {
         existing.attempts++;
         if ((row.score ?? 0) > existing.bestScore) {
@@ -167,8 +166,18 @@ export const leaderboard = createServerFn({ method: "GET" })
         }
       }
     }
+    const userIds = Array.from(byUser.keys());
+    let names = new Map<string, string>();
+    if (userIds.length > 0) {
+      const { data: profiles } = await context.supabase
+        .from("profiles")
+        .select("id, name")
+        .in("id", userIds);
+      names = new Map((profiles ?? []).map((p) => [p.id, p.name ?? "Aspirant"]));
+    }
     return Array.from(byUser.entries())
-      .map(([userId, v]) => ({ userId, ...v }))
+      .map(([userId, v]) => ({ userId, name: names.get(userId) ?? "Aspirant", ...v }))
       .sort((a, b) => b.bestScore - a.bestScore)
       .slice(0, 25);
   });
+
