@@ -132,8 +132,10 @@ function baseStore(): Store {
 }
 
 const listeners = new Set<() => void>();
+let cachedSnapshot: Store | null = null;
 
 function emit() {
+  cachedSnapshot = null; // invalidate cache so next read reflects latest
   listeners.forEach((fn) => fn());
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("testum-store-change"));
@@ -147,7 +149,7 @@ export function subscribeStore(fn: () => void) {
   };
 }
 
-export function readStore(): Store {
+function loadStore(): Store {
   if (typeof window === "undefined") return baseStore();
   try {
     const raw = localStorage.getItem(KEY);
@@ -170,10 +172,19 @@ export function readStore(): Store {
   }
 }
 
+export function readStore(): Store {
+  // CRITICAL: return a stable reference so useSyncExternalStore doesn't loop.
+  if (cachedSnapshot) return cachedSnapshot;
+  cachedSnapshot = loadStore();
+  return cachedSnapshot;
+}
+
 function writeStore(next: Store) {
   if (typeof window === "undefined") return;
+  cachedSnapshot = next;
   localStorage.setItem(KEY, JSON.stringify(next));
   emit();
+  cachedSnapshot = next; // re-set after emit invalidation
 }
 
 function log(next: Store, action: string, target: string) {
