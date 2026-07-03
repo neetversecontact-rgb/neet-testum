@@ -1,184 +1,139 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { ArrowRight, Flame, Target, TrendingUp, Trophy, BookOpenCheck, Clock } from "lucide-react";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-  CartesianGrid,
-} from "recharts";
-import { WEEKLY_PERF, SUBJECT_META, TEST_SERIES } from "@/lib/mockData";
+import { ArrowRight, Target, Trophy, ClipboardList, Clock, BookOpenCheck, Sparkles } from "lucide-react";
+import { useEffect } from "react";
+import { myDashboardStats } from "@/lib/tests.functions";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/dashboard/")({
   component: DashboardHome,
 });
 
-const subjectPie = [
-  { name: "Physics", value: 412, color: "var(--physics)" },
-  { name: "Chemistry", value: 389, color: "var(--chemistry)" },
-  { name: "Biology", value: 521, color: "var(--biology)" },
-];
-
-const stats = [
-  { label: "Questions Solved", value: "1,322", delta: "+86 this week", icon: BookOpenCheck, tint: "primary" },
-  { label: "Accuracy", value: "82%", delta: "+3.4% vs last week", icon: Target, tint: "success" },
-  { label: "Predicted AIR", value: "4,210", delta: "↑ 312 ranks", icon: Trophy, tint: "warning" },
-  { label: "Streak", value: "14 days", delta: "Keep it going!", icon: Flame, tint: "destructive" },
-];
-
 function DashboardHome() {
+  const { user, ready } = useAuth();
+  const qc = useQueryClient();
+  const fetchStats = useServerFn(myDashboardStats);
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-stats", user?.id],
+    queryFn: () => fetchStats(),
+    enabled: ready && !!user,
+  });
+
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+  }, [qc]);
+
+  const s = stats ?? { totalTests: 0, totalQuestions: 0, avgAccuracy: 0, bestScore: 0, availableTests: 0, recent: [] };
+  const isNew = s.totalTests === 0;
+
+  const statCards = [
+    { label: "Tests Attempted", value: s.totalTests.toString(), sub: s.totalTests === 0 ? "Take your first test" : "Keep going", icon: ClipboardList, tint: "primary" },
+    { label: "Questions Solved", value: s.totalQuestions.toString(), sub: "Across all tests", icon: BookOpenCheck, tint: "success" },
+    { label: "Avg Accuracy", value: s.totalTests > 0 ? `${s.avgAccuracy}%` : "—", sub: s.totalTests > 0 ? "Across all attempts" : "No attempts yet", icon: Target, tint: "warning" },
+    { label: "Best Score", value: s.totalTests > 0 ? s.bestScore.toString() : "—", sub: s.totalTests > 0 ? "Personal best" : "No score yet", icon: Trophy, tint: "destructive" },
+  ];
+
   return (
     <div className="space-y-6">
+      {isNew && (
+        <Card className="border-border/60 bg-brand-gradient p-6 text-primary-foreground shadow-elegant">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <Badge className="bg-white/15 text-primary-foreground hover:bg-white/15">
+                <Sparkles className="mr-1 h-3 w-3" /> Welcome{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
+              </Badge>
+              <h2 className="mt-2 font-display text-xl font-bold sm:text-2xl">Start with your first online test</h2>
+              <p className="mt-1 text-sm text-primary-foreground/85">
+                Pick any test, attempt it online, and see your detailed score with solutions.
+              </p>
+            </div>
+            <Button asChild variant="secondary" size="lg">
+              <Link to="/dashboard/tests">
+                <ClipboardList className="mr-1.5 h-4 w-4" /> Take a Test
+              </Link>
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label} className="border-border/60 p-5">
+        {statCards.map((c) => (
+          <Card key={c.label} className="border-border/60 p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
-                <p className="mt-2 font-display text-2xl font-bold">{s.value}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{s.delta}</p>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{c.label}</p>
+                <p className="mt-2 font-display text-2xl font-bold">{c.value}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{c.sub}</p>
               </div>
-              <div className={`grid h-10 w-10 place-items-center rounded-lg bg-[color:var(--${s.tint})]/10 text-[color:var(--${s.tint})]`}>
-                <s.icon className="h-5 w-5" />
+              <div className={`grid h-10 w-10 place-items-center rounded-lg bg-[color:var(--${c.tint})]/10 text-[color:var(--${c.tint})]`}>
+                <c.icon className="h-5 w-5" />
               </div>
             </div>
           </Card>
         ))}
       </div>
 
-      {/* Continue + Charts */}
+      {/* Recent attempts */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="border-border/60 p-6 lg:col-span-2">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-display text-base font-semibold">Weekly performance</h3>
-              <p className="text-xs text-muted-foreground">Questions solved & accuracy</p>
+              <h3 className="font-display text-base font-semibold">Recent test attempts</h3>
+              <p className="text-xs text-muted-foreground">Your latest scores</p>
             </div>
-            <Badge variant="secondary" className="gap-1.5"><TrendingUp className="h-3 w-3" /> +12%</Badge>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/dashboard/tests">All tests <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Link>
+            </Button>
           </div>
-          <div className="mt-5 h-64">
-            <ResponsiveContainer>
-              <AreaChart data={WEEKLY_PERF}>
-                <defs>
-                  <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--primary-glow)" stopOpacity={0.5} />
-                    <stop offset="100%" stopColor="var(--primary-glow)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={12} />
-                <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
-                <Area type="monotone" dataKey="solved" stroke="var(--primary-glow)" strokeWidth={2} fill="url(#g1)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {s.recent.length === 0 ? (
+            <div className="mt-6 rounded-lg border border-dashed border-border/60 p-8 text-center">
+              <ClipboardList className="mx-auto h-8 w-8 text-muted-foreground" />
+              <p className="mt-3 text-sm text-muted-foreground">
+                No attempts yet. Take a test to see your history here.
+              </p>
+              <Button asChild className="mt-4 bg-brand-gradient text-primary-foreground shadow-elegant">
+                <Link to="/dashboard/tests">Browse tests</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {s.recent.map((a: any) => (
+                <div key={a.created_at} className="flex items-center justify-between rounded-lg border border-border/60 p-4">
+                  <div>
+                    <div className="font-medium">{a.test?.title ?? "Test"}</div>
+                    <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> {Math.round((a.time_taken_seconds ?? 0) / 60)} min</span>
+                      <span>{new Date(a.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-display text-lg font-bold">{a.score}</div>
+                    <div className="text-xs text-muted-foreground">{Math.round(a.accuracy ?? 0)}% accuracy</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         <Card className="border-border/60 p-6">
-          <h3 className="font-display text-base font-semibold">Subject mix</h3>
-          <p className="text-xs text-muted-foreground">Questions by subject</p>
-          <div className="mt-4 h-44">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={subjectPie} dataKey="value" innerRadius={45} outerRadius={70} paddingAngle={4}>
-                  {subjectPie.map((s) => <Cell key={s.name} fill={s.color} />)}
-                </Pie>
-                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <h3 className="font-display text-base font-semibold">Available tests</h3>
+          <p className="text-xs text-muted-foreground">Ready to attempt</p>
+          <div className="mt-4 font-display text-4xl font-bold text-brand-gradient">
+            {s.availableTests}
           </div>
-          <div className="mt-2 space-y-2">
-            {subjectPie.map((s) => (
-              <div key={s.name} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />
-                  {s.name}
-                </span>
-                <span className="font-semibold">{s.value}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* Continue + Tests */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="border-border/60 bg-brand-gradient p-6 text-primary-foreground shadow-elegant lg:col-span-1">
-          <Badge className="bg-white/15 text-primary-foreground backdrop-blur hover:bg-white/15">Continue</Badge>
-          <h3 className="mt-3 font-display text-xl font-bold">Biology · Genetics</h3>
-          <p className="mt-1 text-sm text-primary-foreground/80">14 of 30 questions complete</p>
-          <Progress value={(14 / 30) * 100} className="mt-4 bg-white/15 [&>div]:bg-white" />
-          <Button asChild variant="secondary" className="mt-5">
-            <Link to="/dashboard/practice/$subject" params={{ subject: "biology" }}>
-              Resume <ArrowRight className="ml-1.5 h-4 w-4" />
-            </Link>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {s.availableTests === 0 ? "No tests published yet." : "Tests waiting for you"}
+          </p>
+          <Button asChild className="mt-5 w-full bg-brand-gradient text-primary-foreground shadow-elegant">
+            <Link to="/dashboard/tests"><ClipboardList className="mr-1.5 h-4 w-4" /> Take a Test</Link>
           </Button>
         </Card>
-
-        <Card className="border-border/60 p-6 lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display text-base font-semibold">Upcoming tests</h3>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/dashboard/tests">View all <ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Link>
-            </Button>
-          </div>
-          <div className="mt-4 space-y-2">
-            {TEST_SERIES.slice(0, 3).map((t) => (
-              <Link
-                key={t.id}
-                to="/dashboard/tests/$testId"
-                params={{ testId: t.id }}
-                className="flex items-center justify-between rounded-lg border border-border/60 p-4 transition hover:border-primary-glow/40 hover:bg-accent/40"
-              >
-                <div>
-                  <div className="font-medium">{t.title}</div>
-                  <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> {t.duration} min</span>
-                    <span>{t.totalQuestions} Qs</span>
-                    <span>{t.marks} marks</span>
-                  </div>
-                </div>
-                {t.badge ? <Badge variant="secondary">{t.badge}</Badge> : null}
-              </Link>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* Subjects */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {(Object.keys(SUBJECT_META) as Array<keyof typeof SUBJECT_META>).map((k) => {
-          const s = SUBJECT_META[k];
-          return (
-            <Link key={k} to="/dashboard/practice/$subject" params={{ subject: k }}>
-              <Card className="border-border/60 p-5 transition hover:-translate-y-0.5 hover:shadow-soft">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-display text-base font-semibold">{s.label}</div>
-                    <div className="text-xs text-muted-foreground">{s.questions} Qs · {s.chapters} chapters</div>
-                  </div>
-                  <span className="h-10 w-10 rounded-lg" style={{ background: `color-mix(in oklab, var(--${s.color}) 18%, transparent)` }}>
-                    <span className="grid h-full w-full place-items-center font-display text-lg font-bold" style={{ color: `var(--${s.color})` }}>
-                      {s.label[0]}
-                    </span>
-                  </span>
-                </div>
-                <Progress value={[68, 54, 76][["physics", "chemistry", "biology"].indexOf(k)]} className="mt-4 h-1.5" />
-              </Card>
-            </Link>
-          );
-        })}
       </div>
     </div>
   );
