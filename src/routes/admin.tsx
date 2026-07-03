@@ -1,22 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Activity,
-  BarChart3,
-  BellRing,
-  BookOpenCheck,
-  Eye,
-  EyeOff,
-  FileUp,
-  GripVertical,
-  LayoutDashboard,
-  ListChecks,
-  Plus,
-  ShieldCheck,
-  Trash2,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import { Activity, BarChart3, BookOpenCheck, ClipboardList, Plus, ShieldCheck, Trash2, Users, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,66 +12,44 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { hasAdminAccess, useUser } from "@/lib/auth";
-import { SUBJECT_META, type Question, type Subject } from "@/lib/mockData";
 import {
-  ICONS,
-  addBroadcast,
-  addMenuItem,
-  addQuestion,
-  adminMetrics,
-  deleteQuestion,
-  updateMenuItem,
-  addLiveSession,
-  updateLiveSession,
-  deleteLiveSession,
-  type SidebarItem,
-  type LiveSession,
-  type Broadcast,
-  type AuditEvent,
-} from "@/lib/platformStore";
-import { usePlatformStore } from "@/hooks/usePlatformStore";
+  adminListQuestions, adminCreateQuestion, adminDeleteQuestion,
+  adminCreateTest, adminDeleteTest, adminPlatformStats,
+} from "@/lib/adminTests.functions";
+import { listTests } from "@/lib/tests.functions";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
-  head: () => ({
-    meta: [
-      { title: "Admin — Testum" },
-      { name: "description", content: "Manage Testum questions, sidebar, analytics, broadcasts and audit trails." },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "Admin — Testum" }] }),
   component: AdminPage,
 });
 
-const groups: SidebarItem["group"][] = ["Overview", "Learn", "Performance", "Admin"];
-const subjects = Object.keys(SUBJECT_META) as Subject[];
+const SUBJECTS = ["physics", "chemistry", "biology"] as const;
 
 function AdminPage() {
   const user = useUser();
   const navigate = useNavigate();
-  const store = usePlatformStore();
-  const metrics = useMemo(() => adminMetrics(store), [store]);
 
   useEffect(() => {
-    if (!user || !hasAdminAccess(user)) navigate({ to: "/dashboard", replace: true });
+    if (user && !hasAdminAccess(user)) navigate({ to: "/dashboard", replace: true });
   }, [navigate, user]);
 
-  if (!user || !hasAdminAccess(user)) {
+  if (!user) return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Loading…</div>;
+  if (!hasAdminAccess(user)) {
     return (
       <div className="grid min-h-screen place-items-center bg-background p-6 text-center">
         <Card className="max-w-md border-border/60 p-8">
           <ShieldCheck className="mx-auto h-10 w-10 text-muted-foreground" />
           <h1 className="mt-4 font-display text-xl font-bold">Admin access required</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Sign in with an admin account to manage Testum.</p>
           <Button asChild className="mt-5 bg-brand-gradient text-primary-foreground">
-            <Link to="/auth">Go to sign in</Link>
+            <Link to="/dashboard">Back to dashboard</Link>
           </Button>
         </Card>
       </div>
     );
   }
-
-  const adminUser = user;
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -97,175 +61,158 @@ function AdminPage() {
             </div>
             <div>
               <div className="font-display font-bold">Testum Admin</div>
-              <div className="text-[11px] text-muted-foreground">{adminUser.email}</div>
+              <div className="text-[11px] text-muted-foreground">{user.email}</div>
             </div>
           </Link>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">{adminUser.role.replace("_", " ")}</Badge>
-            <Button variant="outline" asChild>
-              <Link to="/dashboard">Student view</Link>
-            </Button>
+            <Badge variant="secondary">{user.role.replace("_", " ")}</Badge>
+            <Button variant="outline" asChild><Link to="/dashboard">Student view</Link></Button>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:py-8">
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <Metric label="Users" value={metrics.users.toLocaleString()} icon={Users} />
-          <Metric label="Questions" value={metrics.questions.toString()} icon={BookOpenCheck} />
-          <Metric label="Tests" value={metrics.tests.toString()} icon={ListChecks} />
-          <Metric label="Attempts" value={metrics.attempts.toLocaleString()} icon={Activity} />
-          <Metric label="Avg accuracy" value={`${metrics.avgAccuracy}%`} icon={BarChart3} />
-        </section>
-
-        <Tabs defaultValue="questions" className="space-y-5">
-          <TabsList className="grid w-full grid-cols-3 lg:w-fit lg:grid-cols-6">
+        <StatsRow />
+        <Tabs defaultValue="tests" className="space-y-5">
+          <TabsList>
+            <TabsTrigger value="tests">Tests</TabsTrigger>
             <TabsTrigger value="questions">Questions</TabsTrigger>
-            <TabsTrigger value="sidebar">Sidebar</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="broadcasts">Broadcasts</TabsTrigger>
-            <TabsTrigger value="audit">Audit</TabsTrigger>
-            <TabsTrigger value="live-sessions">Live Sessions</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="questions" className="m-0">
-            <QuestionManager questions={store.questions} />
-          </TabsContent>
-          <TabsContent value="sidebar" className="m-0">
-            <SidebarManager menu={store.menu} />
-          </TabsContent>
-          <TabsContent value="analytics" className="m-0">
-            <AnalyticsPanel metrics={metrics} />
-          </TabsContent>
-          <TabsContent value="broadcasts" className="m-0">
-            <BroadcastManager broadcasts={store.broadcasts} />
-          </TabsContent>
-          <TabsContent value="audit" className="m-0">
-            <AuditTrail audit={store.audit} />
-          </TabsContent>
-          <TabsContent value="live-sessions" className="m-0">
-            <LiveSessionManager liveSessions={store.liveSessions} />
-          </TabsContent>
+          <TabsContent value="tests" className="m-0"><TestManager /></TabsContent>
+          <TabsContent value="questions" className="m-0"><QuestionManager /></TabsContent>
         </Tabs>
       </main>
     </div>
   );
 }
 
-function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
+function StatsRow() {
+  const fetchStats = useServerFn(adminPlatformStats);
+  const { data } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fetchStats() });
+  const s = data ?? { users: 0, questions: 0, tests: 0, attempts: 0 };
+  const items: Array<[string, number, LucideIcon]> = [
+    ["Users", s.users, Users], ["Questions", s.questions, BookOpenCheck],
+    ["Tests", s.tests, ClipboardList], ["Attempts", s.attempts, Activity],
+  ];
   return (
-    <Card className="border-border/60 p-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
-          <p className="mt-1 font-display text-2xl font-bold">{value}</p>
-        </div>
-        <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </Card>
+    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map(([label, value, Icon]) => (
+        <Card key={label} className="border-border/60 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
+              <p className="mt-1 font-display text-2xl font-bold">{value}</p>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">
+              <Icon className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+      ))}
+    </section>
   );
 }
 
-function QuestionManager({ questions }: { questions: Question[] }) {
-  const [subject, setSubject] = useState<Subject>("biology");
-  const [chapter, setChapter] = useState("Genetics");
-  const [topic, setTopic] = useState("Mendelian Inheritance");
-  const [difficulty, setDifficulty] = useState<Question["difficulty"]>("Medium");
-  const [text, setText] = useState("");
-  const [options, setOptions] = useState(["", "", "", ""]);
-  const [correct, setCorrect] = useState<Question["correct"]>("A");
-  const [explanation, setExplanation] = useState("");
+function QuestionManager() {
+  const qc = useQueryClient();
+  const fetchQs = useServerFn(adminListQuestions);
+  const createQ = useServerFn(adminCreateQuestion);
+  const deleteQ = useServerFn(adminDeleteQuestion);
 
-  function submit(e: React.FormEvent) {
+  const { data: questions = [] } = useQuery({
+    queryKey: ["admin-questions"],
+    queryFn: () => fetchQs({ data: { limit: 200 } }),
+  });
+
+  const [form, setForm] = useState({
+    subject: "biology", chapter: "", topic: "", difficulty: "Medium" as "Easy" | "Medium" | "Hard",
+    question_text: "", opts: ["", "", "", ""], correct: "A" as "A" | "B" | "C" | "D", explanation: "",
+  });
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!text.trim() || options.some((o) => !o.trim()) || !explanation.trim()) {
-      toast.error("Complete question, all options and solution");
-      return;
+    if (!form.question_text.trim() || form.opts.some((o) => !o.trim()) || !form.chapter.trim() || !form.topic.trim()) {
+      return toast.error("Fill all fields");
     }
-    addQuestion({
-      subject,
-      chapter: chapter.trim(),
-      topic: topic.trim(),
-      difficulty,
-      text: text.trim(),
-      options: [
-        { id: "A", text: options[0].trim() },
-        { id: "B", text: options[1].trim() },
-        { id: "C", text: options[2].trim() },
-        { id: "D", text: options[3].trim() },
-      ],
-      correct,
-      explanation: explanation.trim(),
-      source: "Admin entry",
-    });
-    setText("");
-    setOptions(["", "", "", ""]);
-    setExplanation("");
-    toast.success("Question added");
+    try {
+      await createQ({ data: {
+        subject: form.subject, chapter: form.chapter.trim(), topic: form.topic.trim(),
+        difficulty: form.difficulty, question_text: form.question_text.trim(),
+        options: form.opts.map((t, i) => ({ id: ["A", "B", "C", "D"][i] as "A", text: t.trim() })),
+        correct_option: form.correct, explanation: form.explanation.trim() || null, source: "Admin",
+      }});
+      toast.success("Question added");
+      setForm({ ...form, question_text: "", opts: ["", "", "", ""], explanation: "" });
+      qc.invalidateQueries({ queryKey: ["admin-questions"] });
+      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  }
+
+  async function del(id: string) {
+    try {
+      await deleteQ({ data: { id } });
+      toast.success("Deleted");
+      qc.invalidateQueries({ queryKey: ["admin-questions"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
   }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
       <Card className="border-border/60 p-6">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-lg font-semibold">Question management</h2>
-            <p className="text-xs text-muted-foreground">Manual rich entry; image URLs can be pasted into text/options.</p>
-          </div>
-          <FileUp className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <form onSubmit={submit} className="space-y-4">
+        <h2 className="font-display text-lg font-semibold">Add question</h2>
+        <form onSubmit={submit} className="mt-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Subject">
-              <Select value={subject} onValueChange={(v) => setSubject(v as Subject)}>
+              <Select value={form.subject} onValueChange={(v) => setForm({ ...form, subject: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{subjects.map((s) => <SelectItem key={s} value={s}>{SUBJECT_META[s].label}</SelectItem>)}</SelectContent>
+                <SelectContent>{SUBJECTS.map((s) => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
             <Field label="Difficulty">
-              <Select value={difficulty} onValueChange={(v) => setDifficulty(v as Question["difficulty"])}>
+              <Select value={form.difficulty} onValueChange={(v) => setForm({ ...form, difficulty: v as any })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{["Easy", "Medium", "Hard"].map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
           </div>
-          <Field label="Chapter"><Input value={chapter} onChange={(e) => setChapter(e.target.value)} /></Field>
-          <Field label="Topic"><Input value={topic} onChange={(e) => setTopic(e.target.value)} /></Field>
-          <Field label="Question"><Textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder="Enter MCQ stem, formula, or image URL" /></Field>
+          <Field label="Chapter"><Input value={form.chapter} onChange={(e) => setForm({ ...form, chapter: e.target.value })} /></Field>
+          <Field label="Topic"><Input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} /></Field>
+          <Field label="Question"><Textarea rows={3} value={form.question_text} onChange={(e) => setForm({ ...form, question_text: e.target.value })} /></Field>
           <div className="grid gap-2">
-            {options.map((value, index) => (
-              <Input key={index} value={value} onChange={(e) => setOptions((prev) => prev.map((o, i) => i === index ? e.target.value : o))} placeholder={`Option ${String.fromCharCode(65 + index)}`} />
+            {form.opts.map((v, i) => (
+              <Input key={i} value={v} placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                onChange={(e) => setForm({ ...form, opts: form.opts.map((o, j) => j === i ? e.target.value : o) })} />
             ))}
           </div>
           <Field label="Correct option">
-            <Select value={correct} onValueChange={(v) => setCorrect(v as Question["correct"])}>
+            <Select value={form.correct} onValueChange={(v) => setForm({ ...form, correct: v as any })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{["A", "B", "C", "D"].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
-          <Field label="Solution"><Textarea value={explanation} onChange={(e) => setExplanation(e.target.value)} rows={3} /></Field>
+          <Field label="Solution (optional)"><Textarea rows={2} value={form.explanation} onChange={(e) => setForm({ ...form, explanation: e.target.value })} /></Field>
           <Button type="submit" className="w-full bg-brand-gradient text-primary-foreground"><Plus className="mr-1.5 h-4 w-4" /> Add question</Button>
         </form>
       </Card>
 
       <Card className="border-border/60 p-6">
-        <h2 className="font-display text-lg font-semibold">Question bank</h2>
+        <h2 className="font-display text-lg font-semibold">Question bank ({questions.length})</h2>
         <div className="mt-4 max-h-[720px] space-y-2 overflow-auto pr-1">
-          {questions.map((q) => (
+          {questions.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No questions yet. Add your first one on the left.</p>
+          ) : questions.map((q) => (
             <div key={q.id} className="rounded-lg border border-border/60 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{SUBJECT_META[q.subject].label}</Badge>
+                    <Badge variant="secondary" className="capitalize">{q.subject}</Badge>
                     <Badge variant="outline">{q.chapter}</Badge>
                     <Badge>{q.difficulty}</Badge>
                   </div>
-                  <p className="mt-2 line-clamp-2 text-sm font-medium">{q.text}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Correct: {q.correct} · {q.topic}</p>
+                  <p className="mt-2 line-clamp-2 text-sm font-medium">{q.question_text}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Correct: {q.correct_option} · {q.topic}</p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => { deleteQuestion(q.id); toast.success("Question deleted"); }}>
+                <Button variant="ghost" size="icon" onClick={() => del(q.id)}>
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
@@ -277,263 +224,148 @@ function QuestionManager({ questions }: { questions: Question[] }) {
   );
 }
 
-function SidebarManager({ menu }: { menu: SidebarItem[] }) {
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("/dashboard");
-  const [group, setGroup] = useState<SidebarItem["group"]>("Learn");
-  const [icon, setIcon] = useState<SidebarItem["icon"]>("LayoutDashboard");
+function TestManager() {
+  const qc = useQueryClient();
+  const fetchTests = useServerFn(listTests);
+  const fetchQs = useServerFn(adminListQuestions);
+  const createTest = useServerFn(adminCreateTest);
+  const deleteTest = useServerFn(adminDeleteTest);
 
-  function create(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim() || !url.trim()) return toast.error("Title and URL are required");
-    addMenuItem({ title: title.trim(), url: url.trim(), group, icon, visible: true });
-    setTitle("");
-    toast.success("Sidebar item created");
+  const { data: tests = [] } = useQuery({ queryKey: ["tests-list"], queryFn: () => fetchTests() });
+  const { data: allQuestions = [] } = useQuery({
+    queryKey: ["admin-questions-pick"],
+    queryFn: () => fetchQs({ data: { limit: 500 } }),
+  });
+
+  const [title, setTitle] = useState("");
+  const [subject, setSubject] = useState("biology");
+  const [duration, setDuration] = useState(180);
+  const [badge, setBadge] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState("all");
+
+  const filtered = useMemo(
+    () => filter === "all" ? allQuestions : allQuestions.filter((q) => q.subject === filter),
+    [allQuestions, filter],
+  );
+
+  function toggle(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else if (n.size < 180) n.add(id);
+      else { toast.warning("Max 180 questions per test"); return s; }
+      return n;
+    });
   }
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-      <Card className="border-border/60 p-6">
-        <h2 className="font-display text-lg font-semibold">Create menu item</h2>
-        <form onSubmit={create} className="mt-4 space-y-4">
-          <Field label="Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Rank Predictor" /></Field>
-          <Field label="URL"><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="/dashboard/ai" /></Field>
-          <Field label="Group">
-            <Select value={group} onValueChange={(v) => setGroup(v as SidebarItem["group"])}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{groups.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
-            </Select>
-          </Field>
-          <Field label="Icon">
-            <Select value={icon} onValueChange={(v) => setIcon(v as SidebarItem["icon"])}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{Object.keys(ICONS).map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
-            </Select>
-          </Field>
-          <Button type="submit" className="w-full bg-brand-gradient text-primary-foreground"><Plus className="mr-1.5 h-4 w-4" /> Add item</Button>
-        </form>
-      </Card>
-      <Card className="border-border/60 p-6">
-        <h2 className="font-display text-lg font-semibold">Dynamic sidebar</h2>
-        <div className="mt-4 space-y-2">
-          {[...menu].sort((a, b) => a.order - b.order).map((item) => {
-            const Icon = ICONS[item.icon] ?? LayoutDashboard;
-            return (
-              <div key={item.id} className="grid gap-3 rounded-lg border border-border/60 p-3 md:grid-cols-[1fr_110px_90px_92px] md:items-center">
-                <div className="flex min-w-0 items-center gap-3">
-                  <GripVertical className="h-4 w-4 text-muted-foreground" />
-                  <Icon className="h-4 w-4 text-primary" />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{item.title}</div>
-                    <div className="truncate text-xs text-muted-foreground">{item.group} · {item.url}</div>
-                  </div>
-                </div>
-                <Input type="number" value={item.order} onChange={(e) => updateMenuItem(item.id, { order: Number(e.target.value) })} />
-                <Button variant="outline" onClick={() => updateMenuItem(item.id, { visible: !item.visible })}>
-                  {item.visible ? <Eye className="mr-1.5 h-4 w-4" /> : <EyeOff className="mr-1.5 h-4 w-4" />}
-                  {item.visible ? "Show" : "Hide"}
-                </Button>
-                <Select value={item.group} onValueChange={(v) => updateMenuItem(item.id, { group: v as SidebarItem["group"] })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{groups.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-function AnalyticsPanel({ metrics }: { metrics: ReturnType<typeof adminMetrics> }) {
-  return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <Card className="border-border/60 p-6">
-        <h2 className="font-display text-lg font-semibold">Per topic/question</h2>
-        <div className="mt-4 space-y-3 text-sm">
-          {Object.entries(metrics.bySubject).map(([subject, count]) => (
-            <div key={subject}>
-              <div className="flex justify-between"><span className="capitalize">{subject}</span><span>{count} questions</span></div>
-              <div className="mt-1 h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-brand-gradient" style={{ width: `${Math.min(100, Number(count) * 7)}%` }} /></div>
-            </div>
-          ))}
-        </div>
-      </Card>
-      <Card className="border-border/60 p-6">
-        <h2 className="font-display text-lg font-semibold">Difficulty quality</h2>
-        <div className="mt-4 space-y-3 text-sm">
-          {Object.entries(metrics.byDifficulty).map(([difficulty, count]) => (
-            <div key={difficulty} className="flex items-center justify-between rounded-lg bg-accent/40 p-3">
-              <span>{difficulty}</span><Badge variant="secondary">{count}</Badge>
-            </div>
-          ))}
-        </div>
-      </Card>
-      <Card className="border-border/60 p-6">
-        <h2 className="font-display text-lg font-semibold">Granular tracking</h2>
-        <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-          <Row label="Per user" value="streak, accuracy, weak topics" />
-          <Row label="Per question" value="attempts, correct %, reports" />
-          <Row label="Per test" value="rank, score bands, time spent" />
-          <Row label="Per topic" value="mastery and revision due" />
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-function BroadcastManager({ broadcasts }: { broadcasts: Broadcast[] }) {
-  const [title, setTitle] = useState("");
-  const [message, setMessage] = useState("");
-  const [segment, setSegment] = useState("all");
-  const [status, setStatus] = useState("draft");
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim() || !message.trim()) return toast.error("Title and message are required");
-    addBroadcast({ title: title.trim(), message: message.trim(), segment: segment as never, status: status as never });
-    setTitle("");
-    setMessage("");
-    toast.success("Broadcast saved");
-  }
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-      <Card className="border-border/60 p-6">
-        <h2 className="font-display text-lg font-semibold">Segmented broadcast</h2>
-        <form onSubmit={submit} className="mt-4 space-y-4">
-          <Field label="Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-          <Field label="Message"><Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} /></Field>
-          <Field label="Segment">
-            <Select value={segment} onValueChange={setSegment}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All students</SelectItem>
-                <SelectItem value="physics">Physics learners</SelectItem>
-                <SelectItem value="chemistry">Chemistry learners</SelectItem>
-                <SelectItem value="biology">Biology learners</SelectItem>
-                <SelectItem value="low_accuracy">Low accuracy</SelectItem>
-                <SelectItem value="test_takers">Recent test takers</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Status">
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{["draft", "scheduled", "sent"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-            </Select>
-          </Field>
-          <Button type="submit" className="w-full bg-brand-gradient text-primary-foreground"><BellRing className="mr-1.5 h-4 w-4" /> Save broadcast</Button>
-        </form>
-      </Card>
-      <Card className="border-border/60 p-6">
-        <h2 className="font-display text-lg font-semibold">Broadcast queue</h2>
-        <div className="mt-4 space-y-3">
-          {broadcasts.map((b) => (
-            <div key={b.id} className="rounded-lg border border-border/60 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div><div className="font-medium">{b.title}</div><p className="mt-1 text-sm text-muted-foreground">{b.message}</p></div>
-                <Badge>{b.status}</Badge>
-              </div>
-              <div className="mt-3 text-xs text-muted-foreground">Segment: {b.segment} · {new Date(b.createdAt).toLocaleString()}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-function AuditTrail({ audit }: { audit: AuditEvent[] }) {
-  return (
-    <Card className="border-border/60 p-6">
-      <h2 className="font-display text-lg font-semibold">Audit trail</h2>
-      <div className="mt-4 space-y-2">
-        {audit.map((event) => (
-          <div key={event.id} className="grid gap-2 rounded-lg border border-border/60 p-4 text-sm md:grid-cols-[180px_1fr_160px]">
-            <div className="truncate font-medium">{event.actor}</div>
-            <div><span className="font-medium">{event.action}</span><span className="text-muted-foreground"> · {event.target}</span></div>
-            <div className="text-xs text-muted-foreground">{new Date(event.createdAt).toLocaleString()}</div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-function LiveSessionManager({ liveSessions }: { liveSessions: LiveSession[] }) {
-  const [title, setTitle] = useState("");
-  const [educator, setEducator] = useState("");
-  const [description, setDescription] = useState("");
-  const [youtubeVideoId, setYoutubeVideoId] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
-  const [isLive, setIsLive] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !educator.trim() || !youtubeVideoId.trim() || !scheduledAt.trim()) {
-      toast.error("Title, Educator, YouTube Video ID, and Scheduled At are required");
-      return;
-    }
-    await addLiveSession({
-      title: title.trim(),
-      educator: educator.trim(),
-      description: description.trim(),
-      youtube_video_id: youtubeVideoId.trim(),
-      scheduled_at: new Date(scheduledAt).toISOString(),
-      is_live: isLive,
-    });
-    setTitle("");
-    setEducator("");
-    setDescription("");
-    setYoutubeVideoId("");
-    setScheduledAt("");
-    setIsLive(false);
-    toast.success("Live session added");
+    if (!title.trim()) return toast.error("Test title required");
+    if (selected.size === 0) return toast.error("Pick at least 1 question");
+    try {
+      await createTest({ data: {
+        title: title.trim(), subject, duration_minutes: duration, badge: badge.trim() || null,
+        question_ids: Array.from(selected),
+      }});
+      toast.success(`Test created with ${selected.size} questions`);
+      setTitle(""); setBadge(""); setSelected(new Set());
+      qc.invalidateQueries({ queryKey: ["tests-list"] });
+      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  }
+
+  async function del(id: string) {
+    if (!confirm("Delete this test and all its attempts?")) return;
+    try {
+      await deleteTest({ data: { id } });
+      toast.success("Test deleted");
+      qc.invalidateQueries({ queryKey: ["tests-list"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+    <div className="space-y-6">
       <Card className="border-border/60 p-6">
-        <h2 className="font-display text-lg font-semibold">Live Session Management</h2>
-        <form onSubmit={submit} className="mt-4 space-y-4">
-          <Field label="Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Physics — Rotational Mechanics deep dive" /></Field>
-          <Field label="Educator"><Input value={educator} onChange={(e) => setEducator(e.target.value)} placeholder="Dr. R. Sharma" /></Field>
-          <Field label="Description"><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Detailed description of the session" /></Field>
-          <Field label="YouTube Video ID"><Input value={youtubeVideoId} onChange={(e) => setYoutubeVideoId(e.target.value)} placeholder="dQw4w9WgXcQ" /></Field>
-          <Field label="Scheduled At"><Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} /></Field>
-          <div className="flex items-center space-x-2">
-            <input type="checkbox" id="isLive" checked={isLive} onChange={(e) => setIsLive(e.target.checked)} />
-            <Label htmlFor="isLive">Mark as Live Now</Label>
+        <h2 className="font-display text-lg font-semibold">Create test</h2>
+        <p className="text-xs text-muted-foreground">Pick up to 180 questions. Students will attempt them online with timer + auto-scoring.</p>
+        <form onSubmit={submit} className="mt-5 grid gap-4 lg:grid-cols-[380px_1fr]">
+          <div className="space-y-3">
+            <Field label="Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Full Syllabus Mock 01" /></Field>
+            <Field label="Subject">
+              <Select value={subject} onValueChange={setSubject}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SUBJECTS.map((s) => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+                  <SelectItem value="full">Full Syllabus</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Duration (minutes)">
+              <Input type="number" min={1} max={600} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+            </Field>
+            <Field label="Badge (optional)"><Input value={badge} onChange={(e) => setBadge(e.target.value)} placeholder="Featured" /></Field>
+            <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
+              <div className="flex justify-between"><span>Selected</span><span className="font-bold">{selected.size} / 180</span></div>
+              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                <span>Total marks</span><span>{selected.size * 4}</span>
+              </div>
+            </div>
+            <Button type="submit" className="w-full bg-brand-gradient text-primary-foreground"><Plus className="mr-1.5 h-4 w-4" /> Publish test</Button>
           </div>
-          <Button type="submit" className="w-full bg-brand-gradient text-primary-foreground"><Plus className="mr-1.5 h-4 w-4" /> Add Live Session</Button>
+
+          <div className="rounded-lg border border-border/60 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-semibold">Pick questions ({filtered.length})</div>
+              <Select value={filter} onValueChange={setFilter}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All subjects</SelectItem>
+                  {SUBJECTS.map((s) => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="max-h-[520px] space-y-2 overflow-auto">
+              {filtered.length === 0 ? (
+                <p className="py-8 text-center text-xs text-muted-foreground">No questions in bank. Add some in the Questions tab first.</p>
+              ) : filtered.map((q) => (
+                <label key={q.id} className="flex items-start gap-3 rounded border border-border/60 p-3 hover:bg-accent/40 cursor-pointer">
+                  <Checkbox checked={selected.has(q.id)} onCheckedChange={() => toggle(q.id)} className="mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="secondary" className="capitalize text-[10px]">{q.subject}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{q.chapter}</Badge>
+                      <Badge className="text-[10px]">{q.difficulty}</Badge>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-sm">{q.question_text}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
         </form>
       </Card>
 
       <Card className="border-border/60 p-6">
-        <h2 className="font-display text-lg font-semibold">Upcoming Live Sessions</h2>
-        <div className="mt-4 max-h-[720px] space-y-2 overflow-auto pr-1">
-          {liveSessions.map((session) => (
-            <div key={session.id} className="rounded-lg border border-border/60 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{session.educator}</Badge>
-                    <Badge>{new Date(session.scheduled_at).toLocaleString()}</Badge>
-                    {session.is_live && <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive">LIVE</Badge>}
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-sm font-medium">{session.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">YouTube ID: {session.youtube_video_id}</p>
+        <h2 className="font-display text-lg font-semibold">Published tests ({tests.length})</h2>
+        <div className="mt-4 space-y-2">
+          {tests.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No tests published yet.</p>
+          ) : tests.map((t) => (
+            <div key={t.id} className="flex items-center justify-between rounded-lg border border-border/60 p-4">
+              <div>
+                <div className="font-medium">{t.title}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  <span className="capitalize">{t.subject}</span> · {t.total_questions} Qs · {t.duration_minutes} min · {t.total_marks} marks
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => updateLiveSession(session.id, { is_live: !session.is_live })}>
-                    {session.is_live ? "End Live" : "Go Live"}
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => { deleteLiveSession(session.id); toast.success("Live session deleted"); }}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/dashboard/tests/$testId" params={{ testId: t.id }}>Preview</Link>
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => del(t.id)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </div>
             </div>
           ))}
@@ -544,9 +376,10 @@ function LiveSessionManager({ liveSessions }: { liveSessions: LiveSession[] }) {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><Label className="mb-1.5 block">{label}</Label>{children}</div>;
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return <div className="flex justify-between rounded-lg bg-accent/40 p-3"><span className="font-medium text-foreground">{label}</span><span>{value}</span></div>;
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      {children}
+    </div>
+  );
 }
